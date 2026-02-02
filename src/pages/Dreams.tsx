@@ -289,8 +289,8 @@ const Dreams = () => {
             exit={{ opacity: 0 }}
             onClick={() => setIsAdding(false)}
           >
-            <motion.div
-              className="glass-card rounded-t-3xl p-6 w-full max-h-[90vh] overflow-y-auto"
+          <motion.div
+              className="glass-card rounded-t-3xl p-6 pb-24 w-full max-h-[85vh] overflow-y-auto"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
