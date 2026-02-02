@@ -34,7 +34,11 @@ const Alarm = () => {
       <StarField />
 
       {showCaptcha && (
-        <AlarmCaptcha onDismiss={() => setShowCaptcha(false)} />
+        <AlarmCaptcha 
+          onDismiss={() => setShowCaptcha(false)} 
+          captchaType={settings.captchaType}
+          difficulty={settings.captchaDifficulty}
+        />
       )}
 
       <motion.header

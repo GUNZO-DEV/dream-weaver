@@ -1,7 +1,7 @@
+import { forwardRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Bell, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
 
 interface AlarmCardProps {
   time: string;
@@ -11,13 +11,13 @@ interface AlarmCardProps {
   onToggle?: (enabled: boolean) => void;
 }
 
-export const AlarmCard = ({ 
+export const AlarmCard = forwardRef<HTMLDivElement, AlarmCardProps>(({ 
   time, 
   label, 
   enabled = true, 
   wakeWindow = 30,
   onToggle 
-}: AlarmCardProps) => {
+}, ref) => {
   const [isEnabled, setIsEnabled] = useState(enabled);
 
   const handleToggle = () => {
@@ -27,6 +27,7 @@ export const AlarmCard = ({
 
   return (
     <motion.div
+      ref={ref}
       className={`glass-card p-5 rounded-2xl transition-all duration-300 ${
         isEnabled ? "opacity-100" : "opacity-60"
       }`}
@@ -66,4 +67,6 @@ export const AlarmCard = ({
       )}
     </motion.div>
   );
-};
+});
+
+AlarmCard.displayName = "AlarmCard";
