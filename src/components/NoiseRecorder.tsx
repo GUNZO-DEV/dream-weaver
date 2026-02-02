@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Mic, MicOff, Volume2, AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +11,7 @@ interface NoiseEvent {
   intensity: number;
 }
 
-export const NoiseRecorder = () => {
+export const NoiseRecorder = forwardRef<HTMLDivElement>((_, ref) => {
   const [isRecording, setIsRecording] = useState(false);
   const [antiSnore, setAntiSnore] = useState(true);
   const [noiseEvents, setNoiseEvents] = useState<NoiseEvent[]>([]);
@@ -62,6 +62,7 @@ export const NoiseRecorder = () => {
 
   return (
     <motion.div
+      ref={ref}
       className="glass-card rounded-3xl p-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -162,4 +163,6 @@ export const NoiseRecorder = () => {
       </div>
     </motion.div>
   );
-};
+});
+
+NoiseRecorder.displayName = "NoiseRecorder";

@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Moon, BarChart3, Music, Bell, Settings, BookOpen } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -10,11 +11,12 @@ const navItems = [
   { icon: Bell, label: "Alarm", path: "/alarm" },
 ];
 
-export const BottomNav = () => {
+export const BottomNav = forwardRef<HTMLElement>((_, ref) => {
   const location = useLocation();
 
   return (
     <motion.nav
+      ref={ref}
       className="fixed bottom-0 left-0 right-0 glass-card border-t border-border/50 px-2 py-2 z-50"
       initial={{ y: 100 }}
       animate={{ y: 0 }}
@@ -57,4 +59,6 @@ export const BottomNav = () => {
       </div>
     </motion.nav>
   );
-};
+});
+
+BottomNav.displayName = "BottomNav";
