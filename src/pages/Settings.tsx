@@ -2,13 +2,19 @@ import { motion } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { Switch } from "@/components/ui/switch";
-import { ChevronRight, Moon, Bell, Smartphone, Info, Share2, Star, User } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { ChevronRight, Moon, Bell, Smartphone, Info, Share2, Star, User, Target, Clock, Volume2, Vibrate, CloudMoon, Activity } from "lucide-react";
 import { useState } from "react";
 
 const Settings = () => {
   const [bedtimeReminder, setBedtimeReminder] = useState(true);
   const [trackingEnabled, setTrackingEnabled] = useState(true);
   const [lowPowerMode, setLowPowerMode] = useState(false);
+  const [sonarTracking, setSonarTracking] = useState(false);
+  const [antiSnoring, setAntiSnoring] = useState(true);
+  const [targetSleep, setTargetSleep] = useState([8]);
+  const [wakeWindow, setWakeWindow] = useState([30]);
+  const [reminderTime, setReminderTime] = useState("10:30 PM");
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -42,30 +48,102 @@ const Settings = () => {
           </div>
         </motion.section>
 
-        {/* Sleep Settings */}
+        {/* Sleep Goals */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Goals</h3>
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <Target size={18} className="text-primary" />
+                  <span className="text-muted-foreground">Target Sleep</span>
+                </div>
+                <span className="text-foreground font-medium">{targetSleep[0]}h</span>
+              </div>
+              <Slider
+                value={targetSleep}
+                onValueChange={setTargetSleep}
+                min={5}
+                max={10}
+                step={0.5}
+                className="w-full"
+              />
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>5h</span>
+                <span>10h</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <Clock size={18} className="text-accent" />
+                  <span className="text-muted-foreground">Smart Wake Window</span>
+                </div>
+                <span className="text-foreground font-medium">{wakeWindow[0]} min</span>
+              </div>
+              <Slider
+                value={wakeWindow}
+                onValueChange={setWakeWindow}
+                min={10}
+                max={60}
+                step={5}
+                className="w-full"
+              />
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>10 min</span>
+                <span>60 min</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-border/50">
+              <span className="text-muted-foreground">Bedtime Goal</span>
+              <span className="text-foreground font-medium">10:30 PM</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Wake Time Goal</span>
+              <span className="text-foreground font-medium">6:30 AM</span>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Tracking Settings */}
         <motion.section
           className="glass-card rounded-3xl p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Settings</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Tracking</h3>
           <div className="space-y-1">
             <SettingRow 
-              icon={Moon} 
-              title="Bedtime Reminder" 
-              subtitle="Notify at 10:30 PM"
-              toggle
-              checked={bedtimeReminder}
-              onCheckedChange={setBedtimeReminder}
-            />
-            <SettingRow 
-              icon={Bell} 
-              title="Sleep Tracking" 
-              subtitle="Track sleep automatically"
+              icon={Activity} 
+              title="Accelerometer" 
+              subtitle="Track movement via phone sensors"
               toggle
               checked={trackingEnabled}
               onCheckedChange={setTrackingEnabled}
+            />
+            <SettingRow 
+              icon={Volume2} 
+              title="SONAR Tracking" 
+              subtitle="Contactless ultrasonic detection"
+              toggle
+              checked={sonarTracking}
+              onCheckedChange={setSonarTracking}
+            />
+            <SettingRow 
+              icon={CloudMoon} 
+              title="Anti-Snoring" 
+              subtitle="Vibrate when snoring detected"
+              toggle
+              checked={antiSnoring}
+              onCheckedChange={setAntiSnoring}
             />
             <SettingRow 
               icon={Smartphone} 
@@ -78,27 +156,90 @@ const Settings = () => {
           </div>
         </motion.section>
 
-        {/* Goals */}
+        {/* Notifications */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4">Notifications</h3>
+          <div className="space-y-1">
+            <SettingRow 
+              icon={Moon} 
+              title="Bedtime Reminder" 
+              subtitle={`Notify at ${reminderTime}`}
+              toggle
+              checked={bedtimeReminder}
+              onCheckedChange={setBedtimeReminder}
+            />
+            <SettingRow 
+              icon={Bell} 
+              title="Sleep Reports" 
+              subtitle="Weekly sleep summary"
+              toggle
+              checked={true}
+              onCheckedChange={() => {}}
+            />
+            <SettingRow 
+              icon={Vibrate} 
+              title="Haptic Feedback" 
+              subtitle="Vibration on interactions"
+              toggle
+              checked={true}
+              onCheckedChange={() => {}}
+            />
+          </div>
+        </motion.section>
+
+        {/* Integrations */}
         <motion.section
           className="glass-card rounded-3xl p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Goals</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Target Sleep Time</span>
-              <span className="text-foreground font-medium">8 hours</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Bedtime Goal</span>
-              <span className="text-foreground font-medium">10:30 PM</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Wake Time Goal</span>
-              <span className="text-foreground font-medium">6:30 AM</span>
-            </div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Integrations</h3>
+          <div className="space-y-3">
+            {[
+              { name: 'Apple Health', connected: true },
+              { name: 'Google Fit', connected: false },
+              { name: 'Fitbit', connected: false },
+              { name: 'Garmin', connected: false },
+            ].map((integration) => (
+              <div key={integration.name} className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+                <span className="text-foreground">{integration.name}</span>
+                <span className={`text-sm font-medium ${
+                  integration.connected ? 'text-success' : 'text-primary'
+                }`}>
+                  {integration.connected ? 'Connected' : 'Connect'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Data & Privacy */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4">Data & Privacy</h3>
+          <div className="space-y-3">
+            <button className="w-full flex items-center justify-between p-3 bg-secondary/50 rounded-xl hover:bg-secondary/70 transition-colors">
+              <span className="text-foreground">Export Sleep Data</span>
+              <ChevronRight size={18} className="text-muted-foreground" />
+            </button>
+            <button className="w-full flex items-center justify-between p-3 bg-secondary/50 rounded-xl hover:bg-secondary/70 transition-colors">
+              <span className="text-foreground">Backup to Cloud</span>
+              <ChevronRight size={18} className="text-muted-foreground" />
+            </button>
+            <button className="w-full flex items-center justify-between p-3 bg-destructive/10 rounded-xl hover:bg-destructive/20 transition-colors">
+              <span className="text-destructive">Delete All Data</span>
+              <ChevronRight size={18} className="text-destructive" />
+            </button>
           </div>
         </motion.section>
 
@@ -121,7 +262,7 @@ const Settings = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          SleepWell v1.0.0
+          SleepWell v2.0.0 • Made with 💜
         </motion.p>
       </main>
 

@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
-import { Moon, Play, Clock, TrendingUp } from "lucide-react";
+import { Moon, Play, Clock, TrendingUp, Zap } from "lucide-react";
 import { SleepRing } from "@/components/SleepRing";
 import { SleepStageBar } from "@/components/SleepStageBar";
 import { StatCard } from "@/components/StatCard";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
-import { Button } from "@/components/ui/button";
+import { SleepTracker } from "@/components/SleepTracker";
+import { SleepDebtCard } from "@/components/SleepDebtCard";
+import { getSleepHistory } from "@/hooks/useSleepTracking";
 
 const sleepStages = [
   { type: "light" as const, duration: 45 },
@@ -21,17 +23,20 @@ const sleepStages = [
 const totalDuration = sleepStages.reduce((acc, stage) => acc + stage.duration, 0);
 
 const Index = () => {
-  const currentTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-
+  const history = getSleepHistory();
+  const lastRecord = history[0];
+  
   const greeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
+  };
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
   };
 
   return (
@@ -59,20 +64,32 @@ const Index = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <div className="text-center mb-4">
-            <p className="text-muted-foreground text-sm">Last Night's Score</p>
+            <p className="text-muted-foreground text-sm">
+              {lastRecord ? "Last Night's Score" : "Ready to Track"}
+            </p>
           </div>
           
           <SleepRing 
-            percentage={85} 
+            percentage={lastRecord?.sleepScore || 0} 
             size={220} 
-            label="85"
-            sublabel="Excellent"
+            label={lastRecord ? String(lastRecord.sleepScore) : "--"}
+            sublabel={
+              lastRecord 
+                ? lastRecord.sleepScore >= 80 ? "Excellent" 
+                  : lastRecord.sleepScore >= 60 ? "Good" 
+                  : "Needs Improvement"
+                : "Start tracking"
+            }
           />
 
-          <div className="mt-6 text-center">
-            <p className="text-lg font-semibold text-foreground">7h 32m</p>
-            <p className="text-sm text-muted-foreground">Total sleep time</p>
-          </div>
+          {lastRecord && (
+            <div className="mt-6 text-center">
+              <p className="text-lg font-semibold text-foreground">
+                {formatTime(lastRecord.duration)}
+              </p>
+              <p className="text-sm text-muted-foreground">Total sleep time</p>
+            </div>
+          )}
         </motion.section>
 
         {/* Quick Stats */}
@@ -80,42 +97,47 @@ const Index = () => {
           <StatCard 
             icon={Clock} 
             label="Fell Asleep" 
-            value="11:24 PM" 
+            value={lastRecord ? new Date(lastRecord.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : "--:--"} 
             delay={0.3}
           />
           <StatCard 
             icon={TrendingUp} 
             label="Sleep Efficiency" 
-            value="92%" 
-            sublabel="+3% vs avg"
+            value={lastRecord ? `${Math.round((lastRecord.duration / 480) * 100)}%` : "--%"} 
+            sublabel={lastRecord ? "+3% vs avg" : undefined}
             delay={0.4}
           />
         </div>
 
         {/* Sleep Stages */}
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Stages</h3>
-          <SleepStageBar stages={sleepStages} totalDuration={totalDuration} />
-        </motion.section>
+        {lastRecord && (
+          <motion.section
+            className="glass-card rounded-3xl p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Stages</h3>
+            <SleepStageBar stages={sleepStages} totalDuration={totalDuration} />
+          </motion.section>
+        )}
 
-        {/* Start Sleep Button */}
+        {/* Sleep Tracker */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
         >
-          <Button 
-            className="w-full h-16 text-lg font-semibold gradient-primary border-0 rounded-2xl glow"
-            size="lg"
-          >
-            <Moon className="mr-2" size={24} />
-            Start Sleep Tracking
-          </Button>
+          <SleepTracker />
+        </motion.div>
+
+        {/* Sleep Debt Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.65 }}
+        >
+          <SleepDebtCard />
         </motion.div>
 
         {/* Alarm Preview */}
@@ -135,6 +157,22 @@ const Index = () => {
             </div>
           </div>
           <div className="text-sm text-primary font-medium">Edit</div>
+        </motion.section>
+
+        {/* Sleep Tips */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.75 }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Zap size={20} className="text-accent" />
+            <h3 className="text-lg font-semibold text-foreground">Sleep Tip</h3>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Avoid screens 1 hour before bed. Blue light suppresses melatonin production and makes it harder to fall asleep.
+          </p>
         </motion.section>
       </main>
 
