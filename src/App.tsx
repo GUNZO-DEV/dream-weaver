@@ -8,6 +8,7 @@ import Stats from "./pages/Stats";
 import Sounds from "./pages/Sounds";
 import Alarm from "./pages/Alarm";
 import Settings from "./pages/Settings";
+import Dreams from "./pages/Dreams";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/sounds" element={<Sounds />} />
           <Route path="/alarm" element={<Alarm />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/dreams" element={<Dreams />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

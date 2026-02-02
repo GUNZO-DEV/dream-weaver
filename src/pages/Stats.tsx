@@ -2,23 +2,80 @@ import { motion } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { SleepRing } from "@/components/SleepRing";
-import { TrendingUp, TrendingDown, Calendar } from "lucide-react";
-
-const weeklyData = [
-  { day: "Mon", hours: 7.5, score: 82 },
-  { day: "Tue", hours: 6.2, score: 68 },
-  { day: "Wed", hours: 8.0, score: 90 },
-  { day: "Thu", hours: 7.0, score: 78 },
-  { day: "Fri", hours: 5.5, score: 55 },
-  { day: "Sat", hours: 9.0, score: 88 },
-  { day: "Sun", hours: 7.5, score: 85 },
-];
-
-const maxHours = Math.max(...weeklyData.map((d) => d.hours));
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { TrendingUp, TrendingDown, Calendar, Moon, Sun, Target, Award, Zap } from "lucide-react";
+import { getSleepHistory, getSleepDebt } from "@/hooks/useSleepTracking";
+import { format, subDays, eachDayOfInterval } from "date-fns";
 
 const Stats = () => {
+  const history = getSleepHistory();
+  const sleepDebt = getSleepDebt();
+  
+  // Generate weekly data (last 7 days)
+  const weeklyData = eachDayOfInterval({
+    start: subDays(new Date(), 6),
+    end: new Date(),
+  }).map(date => {
+    const dayRecords = history.filter(r => 
+      format(new Date(r.startTime), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+    );
+    const totalMinutes = dayRecords.reduce((acc, r) => acc + r.duration, 0);
+    return {
+      day: format(date, 'EEE'),
+      hours: totalMinutes > 0 ? Math.round((totalMinutes / 60) * 10) / 10 : Math.random() * 3 + 5,
+      score: dayRecords.length > 0 ? dayRecords[0].sleepScore : Math.floor(60 + Math.random() * 30),
+      goal: 8,
+    };
+  });
+
+  // Monthly trend data
+  const monthlyData = Array.from({ length: 4 }, (_, i) => ({
+    week: `Week ${i + 1}`,
+    avgScore: Math.floor(70 + Math.random() * 25),
+    avgHours: Math.round((6 + Math.random() * 2) * 10) / 10,
+  }));
+
+  // Sleep stage distribution
+  const stageData = [
+    { name: 'Deep', value: 25, color: 'hsl(var(--sleep-deep))' },
+    { name: 'Light', value: 45, color: 'hsl(var(--sleep-light))' },
+    { name: 'REM', value: 22, color: 'hsl(var(--sleep-rem))' },
+    { name: 'Awake', value: 8, color: 'hsl(var(--sleep-awake))' },
+  ];
+
+  // Calculate averages
+  const avgScore = history.length > 0 
+    ? Math.round(history.reduce((acc, r) => acc + r.sleepScore, 0) / history.length)
+    : Math.round(weeklyData.reduce((acc, d) => acc + d.score, 0) / weeklyData.length);
+  const avgDuration = history.length > 0
+    ? Math.round(history.reduce((acc, r) => acc + r.duration, 0) / history.length)
+    : 7 * 60 + 15;
+  const avgBedtime = "11:15 PM";
+  const avgWakeTime = "6:45 AM";
   const avgSleep = (weeklyData.reduce((acc, d) => acc + d.hours, 0) / weeklyData.length).toFixed(1);
-  const avgScore = Math.round(weeklyData.reduce((acc, d) => acc + d.score, 0) / weeklyData.length);
+  const maxHours = Math.max(...weeklyData.map((d) => d.hours));
+
+  // Insights
+  const insights = [
+    {
+      icon: TrendingUp,
+      title: "Sleep improving",
+      desc: "Your sleep score is up 8% this week",
+      positive: true,
+    },
+    {
+      icon: Moon,
+      title: "Consistent bedtime",
+      desc: "Great job maintaining your schedule",
+      positive: true,
+    },
+    {
+      icon: Zap,
+      title: "REM sleep low",
+      desc: "Try reducing caffeine after 2 PM",
+      positive: false,
+    },
+  ];
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -29,11 +86,8 @@ const Stats = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Calendar size={16} />
-          <span>This Week</span>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground mt-1">Sleep Statistics</h1>
+        <h1 className="text-2xl font-bold text-foreground">Sleep Statistics</h1>
+        <p className="text-muted-foreground text-sm mt-1">Track your sleep patterns</p>
       </motion.header>
 
       <main className="px-6 space-y-6 relative z-10">
@@ -55,6 +109,29 @@ const Stats = () => {
           <SleepRing percentage={avgScore} size={100} label={`${avgScore}`} />
         </motion.section>
 
+        {/* Overview Cards */}
+        <motion.div 
+          className="grid grid-cols-2 gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+        >
+          <div className="glass-card p-4 rounded-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Moon size={16} className="text-sleep-deep" />
+              <span className="text-xs text-muted-foreground">Avg Bedtime</span>
+            </div>
+            <div className="text-xl font-bold text-foreground">{avgBedtime}</div>
+          </div>
+          <div className="glass-card p-4 rounded-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Sun size={16} className="text-warning" />
+              <span className="text-xs text-muted-foreground">Avg Wake</span>
+            </div>
+            <div className="text-xl font-bold text-foreground">{avgWakeTime}</div>
+          </div>
+        </motion.div>
+
         {/* Weekly Chart */}
         <motion.section
           className="glass-card rounded-3xl p-6"
@@ -62,7 +139,13 @@ const Stats = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h3 className="text-lg font-semibold text-foreground mb-6">Sleep Duration</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">This Week</h3>
+            <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <Calendar size={14} />
+              Last 7 days
+            </span>
+          </div>
           <div className="flex items-end justify-between gap-2 h-40">
             {weeklyData.map((item, index) => (
               <motion.div
@@ -85,28 +168,32 @@ const Stats = () => {
           </div>
           <div className="flex justify-between mt-4 pt-4 border-t border-border/50">
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">5h 30m</p>
+              <p className="text-xl font-bold text-foreground">
+                {Math.min(...weeklyData.map(d => d.hours)).toFixed(1)}h
+              </p>
               <p className="text-xs text-muted-foreground">Min</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">9h 00m</p>
+              <p className="text-xl font-bold text-foreground">
+                {Math.max(...weeklyData.map(d => d.hours)).toFixed(1)}h
+              </p>
               <p className="text-xs text-muted-foreground">Max</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">8h</p>
+              <p className="text-xl font-bold text-foreground">8h</p>
               <p className="text-xs text-muted-foreground">Goal</p>
             </div>
           </div>
         </motion.section>
 
-        {/* Sleep Quality Breakdown */}
+        {/* Sleep Stage Distribution */}
         <motion.section
           className="glass-card rounded-3xl p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.3 }}
         >
-          <h3 className="text-lg font-semibold text-foreground mb-4">Quality Breakdown</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Stage Distribution</h3>
           <div className="space-y-4">
             {[
               { label: "Deep Sleep", value: "1h 45m", percentage: 23, color: "bg-sleep-deep" },
@@ -124,11 +211,93 @@ const Stats = () => {
                     className={`h-full ${item.color} rounded-full`}
                     initial={{ width: 0 }}
                     animate={{ width: `${item.percentage}%` }}
-                    transition={{ duration: 0.8, delay: 0.5 + index * 0.1 }}
+                    transition={{ duration: 0.8, delay: 0.4 + index * 0.1 }}
                   />
                 </div>
               </div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Sleep Debt */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Sleep Debt</h3>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              sleepDebt > 120 
+                ? 'bg-destructive/20 text-destructive' 
+                : sleepDebt > 60 
+                ? 'bg-warning/20 text-warning'
+                : 'bg-success/20 text-success'
+            }`}>
+              {sleepDebt > 120 ? 'High' : sleepDebt > 60 ? 'Moderate' : 'Low'}
+            </span>
+          </div>
+          <div className="text-3xl font-bold text-foreground mb-2">
+            {Math.floor(sleepDebt / 60)}h {sleepDebt % 60}m
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Based on your 8-hour daily goal over the past 7 days
+          </p>
+          <div className="mt-4 p-3 bg-secondary/50 rounded-xl">
+            <p className="text-sm text-muted-foreground">
+              💡 To recover, try adding 30 minutes to your sleep for the next few days.
+            </p>
+          </div>
+        </motion.section>
+
+        {/* Sleep Regularity */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4">Sleep Regularity</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-3xl font-bold text-foreground">78%</div>
+              <p className="text-sm text-muted-foreground">Consistency score</p>
+            </div>
+            <div className="w-20 h-20 relative">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  fill="none"
+                  stroke="hsl(var(--muted))"
+                  strokeWidth="8"
+                />
+                <motion.circle
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  initial={{ strokeDasharray: "0 201" }}
+                  animate={{ strokeDasharray: "156 201" }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                />
+              </svg>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-secondary/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Bedtime variance</p>
+              <p className="font-medium text-foreground">±25 min</p>
+            </div>
+            <div className="p-3 bg-secondary/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Wake time variance</p>
+              <p className="font-medium text-foreground">±18 min</p>
+            </div>
           </div>
         </motion.section>
 
@@ -137,27 +306,52 @@ const Stats = () => {
           className="glass-card rounded-3xl p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.5 }}
         >
           <h3 className="text-lg font-semibold text-foreground mb-4">Insights</h3>
           <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center">
-                <TrendingUp size={16} className="text-success" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Great deep sleep</p>
-                <p className="text-xs text-muted-foreground">You're getting 15% more deep sleep than average</p>
-              </div>
+            {insights.map((insight, index) => (
+              <motion.div
+                key={index}
+                className={`flex items-center gap-4 p-4 rounded-xl ${
+                  insight.positive ? 'bg-success/10' : 'bg-warning/10'
+                }`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 + index * 0.1 }}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  insight.positive ? 'bg-success/20' : 'bg-warning/20'
+                }`}>
+                  <insight.icon size={20} className={insight.positive ? 'text-success' : 'text-warning'} />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">{insight.title}</p>
+                  <p className="text-sm text-muted-foreground">{insight.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Monthly Comparison */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4">Monthly Comparison</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-4 bg-secondary/50 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-2">This Month</p>
+              <p className="text-2xl font-bold text-foreground">7.2h</p>
+              <p className="text-xs text-success mt-1">+12% better</p>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center">
-                <TrendingDown size={16} className="text-warning" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Weekend irregularity</p>
-                <p className="text-xs text-muted-foreground">Try keeping consistent sleep times on weekends</p>
-              </div>
+            <div className="text-center p-4 bg-secondary/50 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-2">Last Month</p>
+              <p className="text-2xl font-bold text-foreground">6.4h</p>
+              <p className="text-xs text-muted-foreground mt-1">baseline</p>
             </div>
           </div>
         </motion.section>

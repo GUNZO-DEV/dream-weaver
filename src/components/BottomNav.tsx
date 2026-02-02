@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-import { Moon, BarChart3, Music, Bell, Settings } from "lucide-react";
+import { Moon, BarChart3, Music, Bell, Settings, BookOpen } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
   { icon: Moon, label: "Sleep", path: "/" },
   { icon: BarChart3, label: "Stats", path: "/stats" },
+  { icon: BookOpen, label: "Dreams", path: "/dreams" },
   { icon: Music, label: "Sounds", path: "/sounds" },
   { icon: Bell, label: "Alarm", path: "/alarm" },
-  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 export const BottomNav = () => {
@@ -15,7 +15,7 @@ export const BottomNav = () => {
 
   return (
     <motion.nav
-      className="fixed bottom-0 left-0 right-0 glass-card border-t border-border/50 px-4 py-2 z-50"
+      className="fixed bottom-0 left-0 right-0 glass-card border-t border-border/50 px-2 py-2 z-50"
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, delay: 0.5 }}
@@ -27,7 +27,7 @@ export const BottomNav = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center gap-1 py-2 px-3 relative"
+              className="flex flex-col items-center gap-1 py-1 px-2 relative"
             >
               <motion.div
                 className={`p-2 rounded-full transition-colors ${
@@ -36,10 +36,10 @@ export const BottomNav = () => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <item.icon size={20} />
+                <item.icon size={18} />
               </motion.div>
               <span
-                className={`text-xs ${
+                className={`text-[10px] ${
                   isActive ? "text-primary font-medium" : "text-muted-foreground"
                 }`}
               >

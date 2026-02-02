@@ -2,18 +2,40 @@ import { motion } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { AlarmCard } from "@/components/AlarmCard";
+import { AlarmCaptcha } from "@/components/AlarmCaptcha";
+import { NoiseRecorder } from "@/components/NoiseRecorder";
 import { Button } from "@/components/ui/button";
-import { Plus, Bell, Clock } from "lucide-react";
+import { Plus, Bell, Clock, Calculator, Brain, Type, Smartphone, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
+import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
+
+const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode; desc: string }[] = [
+  { type: 'math', label: 'Math', icon: <Calculator size={18} />, desc: 'Solve equations' },
+  { type: 'memory', label: 'Memory', icon: <Brain size={18} />, desc: 'Remember sequence' },
+  { type: 'typing', label: 'Typing', icon: <Type size={18} />, desc: 'Type a phrase' },
+  { type: 'shake', label: 'Shake', icon: <Smartphone size={18} />, desc: 'Shake to dismiss' },
+];
 
 const Alarm = () => {
   const [smartWake, setSmartWake] = useState(true);
   const [vibration, setVibration] = useState(true);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  
+  const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
+
+  const testAlarm = () => {
+    startAlarm();
+    setShowCaptcha(true);
+  };
 
   return (
     <div className="min-h-screen pb-24 relative">
       <StarField />
+
+      {showCaptcha && (
+        <AlarmCaptcha onDismiss={() => setShowCaptcha(false)} />
+      )}
 
       <motion.header
         className="px-6 pt-12 pb-6 relative z-10"
@@ -51,6 +73,87 @@ const Alarm = () => {
           </Button>
         </motion.div>
 
+        {/* CAPTCHA Settings */}
+        <motion.section
+          className="glass-card rounded-3xl p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                <Shield size={18} className="text-accent" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">CAPTCHA</h3>
+                <p className="text-xs text-muted-foreground">Tasks to dismiss alarm</p>
+              </div>
+            </div>
+            <Switch 
+              checked={settings.captchaEnabled} 
+              onCheckedChange={(checked) => saveSettings({ captchaEnabled: checked })} 
+            />
+          </div>
+
+          {settings.captchaEnabled && (
+            <div className="space-y-4 mt-4">
+              {/* CAPTCHA Type Selection */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">Challenge Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {captchaOptions.map(option => (
+                    <button
+                      key={option.type}
+                      onClick={() => saveSettings({ captchaType: option.type })}
+                      className={`p-3 rounded-xl flex items-center gap-3 transition-all ${
+                        settings.captchaType === option.type
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                      }`}
+                    >
+                      {option.icon}
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{option.label}</p>
+                        <p className="text-xs opacity-70">{option.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">Difficulty</p>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map(level => (
+                    <button
+                      key={level}
+                      onClick={() => saveSettings({ captchaDifficulty: level })}
+                      className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                        settings.captchaDifficulty === level
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                      }`}
+                    >
+                      {level === 1 ? 'Easy' : level === 2 ? 'Medium' : 'Hard'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Test Button */}
+              <Button 
+                onClick={testAlarm}
+                variant="outline" 
+                className="w-full h-12 rounded-xl"
+              >
+                Test CAPTCHA
+              </Button>
+            </div>
+          )}
+        </motion.section>
+
         {/* Smart Wake Settings */}
         <motion.section
           className="glass-card rounded-3xl p-6"
@@ -86,6 +189,15 @@ const Alarm = () => {
             </div>
           </div>
         </motion.section>
+
+        {/* Snore/Noise Recording */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+        >
+          <NoiseRecorder />
+        </motion.div>
 
         {/* How it Works */}
         <motion.section
