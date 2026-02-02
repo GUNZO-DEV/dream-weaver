@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Calculator, Smartphone, Brain, Type, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -106,11 +106,11 @@ const generateChallenge = (type: CaptchaType, difficulty: number): CaptchaChalle
   }
 };
 
-export const AlarmCaptcha = forwardRef<HTMLDivElement, AlarmCaptchaProps>(({ 
+export const AlarmCaptcha = ({ 
   onDismiss, 
   captchaType = 'math',
   difficulty = 2 
-}, ref) => {
+}: AlarmCaptchaProps) => {
   const [currentChallenge, setCurrentChallenge] = useState<CaptchaChallenge>(() => 
     generateChallenge(captchaType, difficulty)
   );
@@ -158,7 +158,6 @@ export const AlarmCaptcha = forwardRef<HTMLDivElement, AlarmCaptchaProps>(({
 
   return (
     <motion.div
-      ref={ref}
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-md"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -304,6 +303,4 @@ export const AlarmCaptcha = forwardRef<HTMLDivElement, AlarmCaptchaProps>(({
       </motion.div>
     </motion.div>
   );
-});
-
-AlarmCaptcha.displayName = "AlarmCaptcha";
+};
