@@ -3,10 +3,18 @@ import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { ChevronRight, Moon, Bell, Smartphone, Info, Share2, Star, User, Target, Clock, Volume2, Vibrate, CloudMoon, Activity } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Moon, Bell, Smartphone, Info, Share2, Star, User, Target, Clock, Volume2, Vibrate, CloudMoon, Activity, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Settings = () => {
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile();
+  const navigate = useNavigate();
   const [bedtimeReminder, setBedtimeReminder] = useState(true);
   const [trackingEnabled, setTrackingEnabled] = useState(true);
   const [lowPowerMode, setLowPowerMode] = useState(false);
@@ -15,6 +23,12 @@ const Settings = () => {
   const [targetSleep, setTargetSleep] = useState([8]);
   const [wakeWindow, setWakeWindow] = useState([30]);
   const [reminderTime, setReminderTime] = useState("10:30 PM");
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -41,8 +55,10 @@ const Settings = () => {
               <User size={28} className="text-primary-foreground" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-foreground text-lg">Sleep Well User</h3>
-              <p className="text-sm text-muted-foreground">Premium Member</p>
+              <h3 className="font-semibold text-foreground text-lg">
+                {profile?.display_name || user?.email?.split('@')[0] || 'User'}
+              </h3>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
             <ChevronRight className="text-muted-foreground" size={20} />
           </div>
@@ -253,6 +269,22 @@ const Settings = () => {
           <SettingLink icon={Star} title="Rate SleepWell" />
           <SettingLink icon={Share2} title="Share with Friends" />
           <SettingLink icon={Info} title="About" />
+        </motion.section>
+
+        {/* Sign Out */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+        >
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            className="w-full h-14 border-destructive/50 text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="mr-2" size={18} />
+            Sign Out
+          </Button>
         </motion.section>
 
         {/* Version */}
