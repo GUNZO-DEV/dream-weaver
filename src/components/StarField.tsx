@@ -1,4 +1,4 @@
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 interface Star {
@@ -10,7 +10,7 @@ interface Star {
   duration: number;
 }
 
-export const StarField = forwardRef<HTMLDivElement>((_, ref) => {
+export const StarField = () => {
   const [stars, setStars] = useState<Star[]>([]);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export const StarField = forwardRef<HTMLDivElement>((_, ref) => {
   }, []);
 
   return (
-    <div ref={ref} className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {stars.map((star) => (
         <motion.div
           key={star.id}
@@ -56,6 +56,4 @@ export const StarField = forwardRef<HTMLDivElement>((_, ref) => {
       ))}
     </div>
   );
-});
-
-StarField.displayName = "StarField";
+};
