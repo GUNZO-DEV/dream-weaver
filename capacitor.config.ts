@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.8abd20c7552c4623b81672a1e4cfc477',
+  appId: 'app.lovable.sleepwell',
   appName: 'SleepWell',
   webDir: 'dist',
   server: {
