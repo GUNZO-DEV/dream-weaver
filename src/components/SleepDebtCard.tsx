@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp, Target } from "lucide-react";
 import { getSleepDebt, getSleepHistory } from "@/hooks/useSleepTracking";
+import React from "react";
 
-export const SleepDebtCard = () => {
+export const SleepDebtCard = React.forwardRef<HTMLDivElement>((_, ref) => {
   const sleepDebt = getSleepDebt();
   const history = getSleepHistory().slice(0, 7);
-  const targetMinutes = 8 * 60; // 8 hours
+  const targetMinutes = 8 * 60;
   
   const avgSleep = history.length > 0 
     ? Math.round(history.reduce((acc, r) => acc + r.duration, 0) / history.length)
@@ -20,28 +21,24 @@ export const SleepDebtCard = () => {
   const isDeficit = avgSleep < targetMinutes;
 
   return (
-    <motion.div
-      className="glass-card rounded-3xl p-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
+    <div ref={ref} className="bg-secondary/50 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground">Sleep Debt</h3>
-        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-          isDeficit ? 'bg-destructive/20 text-destructive' : 'bg-success/20 text-success'
+        <h3 className="text-[17px] font-semibold text-foreground">Sleep Debt</h3>
+        <div className={`px-3 py-1 rounded-full text-[11px] font-medium uppercase tracking-wide ${
+          isDeficit ? 'bg-destructive/15 text-destructive' : 'bg-success/15 text-success'
         }`}>
           {isDeficit ? 'In Debt' : 'On Track'}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {/* Weekly Debt */}
-        <div className="glass-card p-4 rounded-xl">
+        <div className="bg-background/50 p-4 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingDown size={16} className="text-destructive" />
-            <span className="text-xs text-muted-foreground">Weekly Debt</span>
+            <TrendingDown size={14} className="text-destructive" strokeWidth={2} />
+            <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Weekly Debt</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">
+          <div className="text-[22px] font-semibold text-foreground tracking-tight">
             {sleepDebt > 0 ? (
               <>
                 {debtHours > 0 && `${debtHours}h `}
@@ -54,12 +51,12 @@ export const SleepDebtCard = () => {
         </div>
 
         {/* Average Sleep */}
-        <div className="glass-card p-4 rounded-xl">
+        <div className="bg-background/50 p-4 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={16} className="text-primary" />
-            <span className="text-xs text-muted-foreground">Avg Sleep</span>
+            <TrendingUp size={14} className="text-primary" strokeWidth={2} />
+            <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Avg Sleep</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">
+          <div className="text-[22px] font-semibold text-foreground tracking-tight">
             {history.length > 0 ? (
               <>
                 {avgHours}h {avgMinutes}m
@@ -73,24 +70,24 @@ export const SleepDebtCard = () => {
 
       {/* Progress Bar */}
       <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Daily Goal Progress</span>
+        <div className="flex justify-between text-[13px]">
+          <span className="text-muted-foreground">Daily Goal</span>
           <span className="text-foreground font-medium">
             {history.length > 0 ? Math.round((avgSleep / targetMinutes) * 100) : 0}%
           </span>
         </div>
-        <div className="h-3 bg-secondary rounded-full overflow-hidden">
+        <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${isDeficit ? 'bg-warning' : 'bg-success'}`}
+            className={`h-full rounded-full ${isDeficit ? 'bg-accent' : 'bg-success'}`}
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(100, (avgSleep / targetMinutes) * 100)}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
           />
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground">
+        <div className="flex justify-between text-[11px] text-muted-foreground">
           <span>0h</span>
           <span className="flex items-center gap-1">
-            <Target size={12} />
+            <Target size={10} />
             8h target
           </span>
           <span>10h+</span>
@@ -100,16 +97,18 @@ export const SleepDebtCard = () => {
       {/* Tip */}
       {isDeficit && sleepDebt > 120 && (
         <motion.div
-          className="mt-4 p-3 bg-warning/10 rounded-xl border border-warning/20"
+          className="mt-4 p-3 bg-accent/10 rounded-xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <p className="text-sm text-warning">
-            💡 Try going to bed 30 minutes earlier to catch up on sleep debt.
+          <p className="text-[13px] text-accent">
+            💡 Try going to bed 30 minutes earlier to catch up.
           </p>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
-};
+});
+
+SleepDebtCard.displayName = "SleepDebtCard";

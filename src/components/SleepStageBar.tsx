@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 interface SleepStage {
   type: "deep" | "light" | "rem" | "awake";
-  duration: number; // in minutes
+  duration: number;
 }
 
 interface SleepStageBarProps {
@@ -27,7 +27,7 @@ const stageLabels = {
 export const SleepStageBar = ({ stages, totalDuration }: SleepStageBarProps) => {
   return (
     <div className="w-full">
-      <div className="flex h-8 rounded-lg overflow-hidden">
+      <div className="flex h-6 rounded-lg overflow-hidden gap-0.5">
         {stages.map((stage, index) => {
           const widthPercentage = (stage.duration / totalDuration) * 100;
           return (
@@ -36,7 +36,7 @@ export const SleepStageBar = ({ stages, totalDuration }: SleepStageBarProps) => 
               className={`${stageColors[stage.type]} first:rounded-l-lg last:rounded-r-lg`}
               initial={{ width: 0 }}
               animate={{ width: `${widthPercentage}%` }}
-              transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
+              transition={{ duration: 0.6, delay: index * 0.05, ease: "easeOut" }}
             />
           );
         })}
@@ -46,8 +46,8 @@ export const SleepStageBar = ({ stages, totalDuration }: SleepStageBarProps) => 
       <div className="flex flex-wrap gap-4 mt-4">
         {Object.entries(stageLabels).map(([key, label]) => (
           <div key={key} className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${stageColors[key as keyof typeof stageColors]}`} />
-            <span className="text-sm text-muted-foreground">{label}</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${stageColors[key as keyof typeof stageColors]}`} />
+            <span className="text-[12px] text-muted-foreground">{label}</span>
           </div>
         ))}
       </div>
