@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 
 interface Star {
   id: number;
@@ -11,24 +11,15 @@ interface Star {
 }
 
 export const StarField = () => {
-  const [stars, setStars] = useState<Star[]>([]);
-
-  useEffect(() => {
-    const generateStars = () => {
-      const newStars: Star[] = [];
-      for (let i = 0; i < 50; i++) {
-        newStars.push({
-          id: i,
-          x: Math.random() * 100,
-          y: Math.random() * 100,
-          size: Math.random() * 2 + 1,
-          delay: Math.random() * 3,
-          duration: Math.random() * 2 + 2,
-        });
-      }
-      setStars(newStars);
-    };
-    generateStars();
+  const stars = useMemo<Star[]>(() => {
+    return Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 1.5 + 0.5,
+      delay: Math.random() * 4,
+      duration: Math.random() * 4 + 3,
+    }));
   }, []);
 
   return (
@@ -36,7 +27,7 @@ export const StarField = () => {
       {stars.map((star) => (
         <motion.div
           key={star.id}
-          className="absolute rounded-full bg-foreground/30"
+          className="absolute rounded-full bg-white/20"
           style={{
             left: `${star.x}%`,
             top: `${star.y}%`,
@@ -44,7 +35,7 @@ export const StarField = () => {
             height: star.size,
           }}
           animate={{
-            opacity: [0.3, 1, 0.3],
+            opacity: [0.1, 0.3, 0.1],
           }}
           transition={{
             duration: star.duration,
