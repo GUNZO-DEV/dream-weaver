@@ -6,27 +6,21 @@ interface StatCardProps {
   label: string;
   value: string;
   sublabel?: string;
-  delay?: number;
 }
 
-export const StatCard = ({ icon: Icon, label, value, sublabel, delay = 0 }: StatCardProps) => {
+export const StatCard = ({ icon: Icon, label, value, sublabel }: StatCardProps) => {
   return (
-    <motion.div
-      className="glass-card p-4 rounded-2xl"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-    >
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-          <Icon size={16} className="text-primary" />
+    <div className="bg-secondary/50 p-4 rounded-2xl">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
+          <Icon size={14} className="text-primary" strokeWidth={2} />
         </div>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-[13px] text-muted-foreground">{label}</span>
       </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
+      <div className="text-[22px] font-semibold text-foreground tracking-tight">{value}</div>
       {sublabel && (
-        <div className="text-xs text-muted-foreground mt-1">{sublabel}</div>
+        <div className="text-[12px] text-success mt-0.5">{sublabel}</div>
       )}
-    </motion.div>
+    </div>
   );
 };
