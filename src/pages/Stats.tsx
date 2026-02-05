@@ -4,12 +4,25 @@ import { StarField } from "@/components/StarField";
 import { SleepRing } from "@/components/SleepRing";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, TrendingDown, Calendar, Moon, Sun, Target, Award, Zap } from "lucide-react";
-import { getSleepHistory, getSleepDebt } from "@/hooks/useSleepTracking";
+ import { getSleepHistory, getSleepDebt, SleepRecord } from "@/hooks/useSleepTracking";
 import { format, subDays, eachDayOfInterval } from "date-fns";
+ import { useState, useEffect } from "react";
 
 const Stats = () => {
-  const history = getSleepHistory();
-  const sleepDebt = getSleepDebt();
+   const [history, setHistory] = useState<SleepRecord[]>([]);
+   const [sleepDebt, setSleepDebt] = useState(0);
+ 
+   useEffect(() => {
+     const loadData = async () => {
+       const [records, debt] = await Promise.all([
+         getSleepHistory(),
+         getSleepDebt()
+       ]);
+       setHistory(records);
+       setSleepDebt(debt);
+     };
+     loadData();
+   }, []);
   
   // Generate weekly data (last 7 days)
   const weeklyData = eachDayOfInterval({

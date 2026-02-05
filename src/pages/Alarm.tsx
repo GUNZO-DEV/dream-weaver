@@ -7,8 +7,15 @@ import { NoiseRecorder } from "@/components/NoiseRecorder";
 import { Button } from "@/components/ui/button";
 import { Plus, Bell, Clock, Calculator, Brain, Type, Smartphone, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+ import { useState, useEffect } from "react";
 import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
+ import { useAlarms } from "@/hooks/useAlarms";
+ import { useNativeAlarm } from "@/hooks/useNativeAlarm";
+ import { useAuth } from "@/contexts/AuthContext";
+ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import { toast } from "sonner";
 
 const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode; desc: string }[] = [
   { type: 'math', label: 'Math', icon: <Calculator size={18} />, desc: 'Solve equations' },
@@ -18,17 +25,97 @@ const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode;
 ];
 
 const Alarm = () => {
+   const { user } = useAuth();
+   const { alarms, isLoading, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
+   const { scheduleRepeatingAlarm, cancelAlarm: cancelNativeAlarm, isNative, registerAlarmActions } = useNativeAlarm();
   const [smartWake, setSmartWake] = useState(true);
   const [vibration, setVibration] = useState(true);
   const [showCaptcha, setShowCaptcha] = useState(false);
+   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+   const [newAlarmTime, setNewAlarmTime] = useState("07:00");
+   const [newAlarmLabel, setNewAlarmLabel] = useState("");
   
   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
 
+   useEffect(() => {
+     if (isNative) {
+       registerAlarmActions();
+     }
+   }, [isNative, registerAlarmActions]);
+ 
   const testAlarm = () => {
     startAlarm();
     setShowCaptcha(true);
   };
 
+   const handleAddAlarm = async () => {
+     if (!user) {
+       toast.error("Please log in to add alarms");
+       return;
+     }
+ 
+     try {
+       const result = await addAlarm.mutateAsync({
+         time: newAlarmTime,
+         label: newAlarmLabel || null,
+         enabled: true,
+         days_of_week: [2, 3, 4, 5, 6], // Mon-Fri
+         wake_window_minutes: 30,
+         captcha_enabled: settings.captchaEnabled,
+         captcha_type: settings.captchaType,
+         captcha_difficulty: settings.captchaDifficulty,
+         vibration,
+         gradual_volume: true,
+       });
+ 
+       // Schedule native notification if on device
+       if (isNative && result) {
+         const [hours, minutes] = newAlarmTime.split(':').map(Number);
+         await scheduleRepeatingAlarm(
+           parseInt(result.id.substring(0, 8), 16) % 100000,
+           "Wake Up!",
+           newAlarmLabel || "Time to wake up",
+           hours,
+           minutes,
+           [2, 3, 4, 5, 6] // Mon-Fri in Capacitor format (1=Sun, 2=Mon, etc.)
+         );
+       }
+ 
+       toast.success("Alarm added!");
+       setIsAddDialogOpen(false);
+       setNewAlarmTime("07:00");
+       setNewAlarmLabel("");
+     } catch (error) {
+       toast.error("Failed to add alarm");
+       console.error(error);
+     }
+   };
+ 
+   const handleToggleAlarm = async (id: string, enabled: boolean) => {
+     try {
+       await toggleAlarm.mutateAsync({ id, enabled });
+       toast.success(enabled ? "Alarm enabled" : "Alarm disabled");
+     } catch (error) {
+       toast.error("Failed to update alarm");
+     }
+   };
+ 
+   const handleDeleteAlarm = async (id: string) => {
+     try {
+       await deleteAlarm.mutateAsync(id);
+       toast.success("Alarm deleted");
+     } catch (error) {
+       toast.error("Failed to delete alarm");
+     }
+   };
+ 
+   const formatTime = (time: string) => {
+     const [hours, minutes] = time.split(':').map(Number);
+     const period = hours >= 12 ? 'PM' : 'AM';
+     const displayHours = hours % 12 || 12;
+     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+   };
+ 
   return (
     <div className="min-h-screen pb-24 relative">
       <StarField />
@@ -58,8 +145,25 @@ const Alarm = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
         >
-          <AlarmCard time="7:00 AM" label="Weekdays" wakeWindow={30} />
-          <AlarmCard time="9:00 AM" label="Weekends" wakeWindow={45} enabled={false} />
+           {isLoading ? (
+             <div className="text-center text-muted-foreground py-8">Loading alarms...</div>
+           ) : !user ? (
+             <div className="text-center text-muted-foreground py-8">Please log in to manage alarms</div>
+           ) : alarms && alarms.length > 0 ? (
+             alarms.map((alarm) => (
+               <AlarmCard
+                 key={alarm.id}
+                 time={formatTime(alarm.time)}
+                 label={alarm.label || "Alarm"}
+                 wakeWindow={alarm.wake_window_minutes || 30}
+                 enabled={alarm.enabled ?? true}
+                 onToggle={(enabled) => handleToggleAlarm(alarm.id, enabled)}
+                 onDelete={() => handleDeleteAlarm(alarm.id)}
+               />
+             ))
+           ) : (
+             <div className="text-center text-muted-foreground py-8">No alarms set. Add one below!</div>
+           )}
         </motion.section>
 
         {/* Add Alarm Button */}
@@ -68,13 +172,47 @@ const Alarm = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Button 
-            variant="outline" 
-            className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
-          >
-            <Plus className="mr-2" size={20} />
-            Add New Alarm
-          </Button>
+           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+             <DialogTrigger asChild>
+               <Button 
+                 variant="outline" 
+                 className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
+                 disabled={!user}
+               >
+                 <Plus className="mr-2" size={20} />
+                 Add New Alarm
+               </Button>
+             </DialogTrigger>
+             <DialogContent className="bg-background border-border">
+               <DialogHeader>
+                 <DialogTitle>Add New Alarm</DialogTitle>
+               </DialogHeader>
+               <div className="space-y-4 pt-4">
+                 <div className="space-y-2">
+                   <Label htmlFor="time">Time</Label>
+                   <Input
+                     id="time"
+                     type="time"
+                     value={newAlarmTime}
+                     onChange={(e) => setNewAlarmTime(e.target.value)}
+                     className="text-lg"
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="label">Label (optional)</Label>
+                   <Input
+                     id="label"
+                     placeholder="e.g., Work, Gym, School"
+                     value={newAlarmLabel}
+                     onChange={(e) => setNewAlarmLabel(e.target.value)}
+                   />
+                 </div>
+                 <Button onClick={handleAddAlarm} className="w-full" disabled={addAlarm.isPending}>
+                   {addAlarm.isPending ? "Adding..." : "Add Alarm"}
+                 </Button>
+               </div>
+             </DialogContent>
+           </Dialog>
         </motion.div>
 
         {/* CAPTCHA Settings */}

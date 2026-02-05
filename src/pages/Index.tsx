@@ -6,8 +6,9 @@ import { StatCard } from "@/components/StatCard";
 import { BottomNav } from "@/components/BottomNav";
 import { SleepTracker } from "@/components/SleepTracker";
 import { SleepDebtCard } from "@/components/SleepDebtCard";
-import { getSleepHistory } from "@/hooks/useSleepTracking";
+ import { getSleepHistory, SleepRecord } from "@/hooks/useSleepTracking";
 import { Link } from "react-router-dom";
+ import { useState, useEffect } from "react";
 
 const sleepStages = [
   { type: "light" as const, duration: 45 },
@@ -23,8 +24,17 @@ const sleepStages = [
 const totalDuration = sleepStages.reduce((acc, stage) => acc + stage.duration, 0);
 
 const Index = () => {
-  const history = getSleepHistory();
-  const lastRecord = history[0];
+   const [lastRecord, setLastRecord] = useState<SleepRecord | null>(null);
+   
+   useEffect(() => {
+     const loadHistory = async () => {
+       const history = await getSleepHistory();
+       if (history.length > 0) {
+         setLastRecord(history[0]);
+       }
+     };
+     loadHistory();
+   }, []);
   
   const greeting = () => {
     const hour = new Date().getHours();

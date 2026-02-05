@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight } from "lucide-react";
+ import { ChevronRight, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+ import { Button } from "@/components/ui/button";
 
 interface AlarmCardProps {
   time: string;
@@ -9,6 +10,7 @@ interface AlarmCardProps {
   enabled?: boolean;
   wakeWindow?: number;
   onToggle?: (enabled: boolean) => void;
+   onDelete?: () => void;
 }
 
 export const AlarmCard = ({ 
@@ -16,13 +18,20 @@ export const AlarmCard = ({
   label, 
   enabled = true, 
   wakeWindow = 30,
-  onToggle 
+   onToggle,
+   onDelete
 }: AlarmCardProps) => {
-  const [isEnabled, setIsEnabled] = useState(enabled);
+   const [isEnabled, setIsEnabled] = useState(enabled);
+ 
+   // Sync with prop changes
+   useState(() => {
+     setIsEnabled(enabled);
+   });
 
   const handleToggle = () => {
-    setIsEnabled(!isEnabled);
-    onToggle?.(!isEnabled);
+     const newValue = !isEnabled;
+     setIsEnabled(newValue);
+     onToggle?.(newValue);
   };
 
   return (
@@ -53,9 +62,24 @@ export const AlarmCard = ({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
         >
-          <div className="flex items-center justify-between text-[14px]">
-            <span className="text-muted-foreground">Smart Wake Window</span>
-            <span className="text-primary font-medium">{wakeWindow} min</span>
+           <div className="flex items-center justify-between">
+             <div className="text-[14px]">
+               <span className="text-muted-foreground">Smart Wake Window: </span>
+               <span className="text-primary font-medium">{wakeWindow} min</span>
+             </div>
+             {onDelete && (
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   onDelete();
+                 }}
+                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
+               >
+                 <Trash2 size={16} />
+               </Button>
+             )}
           </div>
         </motion.div>
       )}

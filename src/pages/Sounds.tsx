@@ -2,9 +2,11 @@ import { motion } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { SoundCard } from "@/components/SoundCard";
-import { CloudRain, Wind, Waves, TreePine, Music, Flame, Bird, Coffee } from "lucide-react";
+ import { CloudRain, Wind, Waves, TreePine, Music, Flame, Bird, Coffee, StopCircle, Timer } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { useState } from "react";
+ import { useSoundPlayer } from "@/hooks/useSoundPlayer";
+ import { Button } from "@/components/ui/button";
+ import { toast } from "sonner";
 
 const sounds = [
   { name: "Rain", icon: <CloudRain size={24} className="text-foreground" /> },
@@ -18,8 +20,22 @@ const sounds = [
 ];
 
 const Sounds = () => {
-  const [volume, setVolume] = useState([50]);
-  const [timer, setTimer] = useState([30]);
+   const {
+     toggleSound,
+     stopAllSounds,
+     isSoundPlaying,
+     getPlayingCount,
+     masterVolume,
+     setMasterVolume,
+     timerMinutes,
+     setTimerMinutes,
+     startTimer,
+   } = useSoundPlayer();
+ 
+   const handleStartTimer = () => {
+     startTimer();
+     toast.success(`Timer set for ${timerMinutes} minutes`);
+   };
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -49,12 +65,34 @@ const Sounds = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 + index * 0.05 }}
               >
-                <SoundCard name={sound.name} icon={sound.icon} />
+                 <SoundCard 
+                   name={sound.name} 
+                   icon={sound.icon} 
+                   isPlaying={isSoundPlaying(sound.name)}
+                   onToggle={() => toggleSound(sound.name)}
+                 />
               </motion.div>
             ))}
           </div>
         </motion.section>
 
+         {/* Stop All Button */}
+         {getPlayingCount() > 0 && (
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+           >
+             <Button
+               onClick={stopAllSounds}
+               variant="destructive"
+               className="w-full h-12 rounded-2xl"
+             >
+               <StopCircle className="mr-2" size={20} />
+               Stop All Sounds ({getPlayingCount()} playing)
+             </Button>
+           </motion.div>
+         )}
+ 
         {/* Volume Control */}
         <motion.section
           className="glass-card rounded-3xl p-6"
@@ -64,11 +102,11 @@ const Sounds = () => {
         >
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-foreground">Volume</h3>
-            <span className="text-primary font-medium">{volume[0]}%</span>
+             <span className="text-primary font-medium">{masterVolume}%</span>
           </div>
           <Slider
-            value={volume}
-            onValueChange={setVolume}
+             value={[masterVolume]}
+             onValueChange={(v) => setMasterVolume(v[0])}
             max={100}
             step={1}
             className="w-full"
@@ -84,11 +122,11 @@ const Sounds = () => {
         >
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-foreground">Sleep Timer</h3>
-            <span className="text-primary font-medium">{timer[0]} min</span>
+             <span className="text-primary font-medium">{timerMinutes} min</span>
           </div>
           <Slider
-            value={timer}
-            onValueChange={setTimer}
+             value={[timerMinutes]}
+             onValueChange={(v) => setTimerMinutes(v[0])}
             max={120}
             step={5}
             className="w-full"
@@ -98,6 +136,15 @@ const Sounds = () => {
             <span>1 hour</span>
             <span>2 hours</span>
           </div>
+           <Button
+             onClick={handleStartTimer}
+             variant="outline"
+             className="w-full mt-4 rounded-xl"
+             disabled={getPlayingCount() === 0}
+           >
+             <Timer className="mr-2" size={18} />
+             Start Timer
+           </Button>
         </motion.section>
 
         {/* Presets */}

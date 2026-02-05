@@ -1,4 +1,24 @@
 import { useState, useCallback } from 'react';
+ import { Capacitor } from '@capacitor/core';
+ import { Preferences } from '@capacitor/preferences';
+ 
+ const isNative = Capacitor.isNativePlatform();
+ 
+ const storageGet = async (key: string): Promise<string | null> => {
+   if (isNative) {
+     const { value } = await Preferences.get({ key });
+     return value;
+   }
+   return localStorage.getItem(key);
+ };
+ 
+ const storageSet = async (key: string, value: string): Promise<void> => {
+   if (isNative) {
+     await Preferences.set({ key, value });
+   } else {
+     localStorage.setItem(key, value);
+   }
+ };
 
 export type CaptchaType = 'math' | 'shake' | 'barcode' | 'memory' | 'typing';
 
@@ -30,19 +50,27 @@ const defaultSettings: AlarmSettings = {
 };
 
 export const useAlarmCaptcha = () => {
-  const [settings, setSettings] = useState<AlarmSettings>(() => {
-    const saved = localStorage.getItem('alarmSettings');
-    return saved ? JSON.parse(saved) : defaultSettings;
-  });
+   const [settings, setSettings] = useState<AlarmSettings>(defaultSettings);
+   const [isLoaded, setIsLoaded] = useState(false);
 
   const [currentChallenge, setCurrentChallenge] = useState<CaptchaChallenge | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [isAlarmActive, setIsAlarmActive] = useState(false);
 
+   // Load settings from storage on mount
+   useState(() => {
+     storageGet('alarmSettings').then(saved => {
+       if (saved) {
+         setSettings(JSON.parse(saved));
+       }
+       setIsLoaded(true);
+     });
+   });
+ 
   const saveSettings = useCallback((newSettings: Partial<AlarmSettings>) => {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
-    localStorage.setItem('alarmSettings', JSON.stringify(updated));
+     storageSet('alarmSettings', JSON.stringify(updated));
   }, [settings]);
 
   const generateMathChallenge = (difficulty: number): CaptchaChallenge => {
