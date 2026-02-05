@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { LocalNotifications, ScheduleOptions } from '@capacitor/local-notifications';
+import { LocalNotifications, ScheduleOptions, Importance } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 
 export interface AlarmNotification {
@@ -19,6 +19,22 @@ export const useNativeAlarm = () => {
       // Request permissions
       LocalNotifications.requestPermissions().then(result => {
         console.log('Notification permissions:', result);
+      });
+      
+      // Create a high-priority notification channel for alarms (Android)
+      LocalNotifications.createChannel({
+        id: 'alarm_channel',
+        name: 'Alarms',
+        description: 'Alarm notifications',
+        importance: 5, // Max importance
+        visibility: 1, // Public
+        sound: 'alarm_sound', // Custom sound file
+        vibration: true,
+        lights: true,
+      }).then(() => {
+        console.log('Alarm notification channel created');
+      }).catch(err => {
+        console.warn('Failed to create alarm channel:', err);
       });
       
       // Register action types for notifications
@@ -69,14 +85,13 @@ export const useNativeAlarm = () => {
           title: alarm.title,
           body: alarm.body,
           schedule: { at: alarm.scheduledAt },
-          sound: undefined, // Use default system sound - we'll play our own via Web Audio
+          sound: 'alarm_sound.wav', // Native sound file
           actionTypeId: 'ALARM_ACTIONS',
           extra: { alarmId: alarm.id },
-          // iOS specific options
+          channelId: 'alarm_channel', // Android high-priority channel
           attachments: undefined,
           threadIdentifier: 'alarms',
           summaryArgument: alarm.title,
-          // Make it an alarm-style notification
           ongoing: true,
           autoCancel: false,
         },
@@ -158,15 +173,16 @@ export const useNativeAlarm = () => {
         repeats: true,
         allowWhileIdle: true,
       },
-      sound: undefined, // Use default - we play via Web Audio when notification fires
+      sound: 'alarm_sound.wav', // Native sound file for persistent alarm
       actionTypeId: 'ALARM_ACTIONS',
       extra: { alarmId: id, dayOfWeek: day },
-      // iOS specific
+      channelId: 'alarm_channel', // Android high-priority channel
       threadIdentifier: 'alarms',
       summaryArgument: title,
-      // Android: make it sticky/ongoing
       ongoing: true,
       autoCancel: false,
+      // iOS: Make notification persist longer
+      interruptionLevel: 'timeSensitive' as any,
     }));
 
     try {

@@ -35,6 +35,7 @@
    const [showCaptcha, setShowCaptcha] = useState(false);
    const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
    const [editingAlarm, setEditingAlarm] = useState<string | null>(null);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
    const [activeAlarmCaptcha, setActiveAlarmCaptcha] = useState<{
      captchaType: CaptchaType;
      difficulty: number;
@@ -67,6 +68,37 @@
      }
    }, [alarms, alarmsError]);
  
+  // Unlock audio on first user interaction (iOS requirement)
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (!audioUnlocked) {
+        console.log('[Alarm] Unlocking audio on user interaction');
+        // Create and play a silent audio to unlock iOS audio
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const buffer = ctx.createBuffer(1, 1, 22050);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          source.start(0);
+          ctx.resume().then(() => {
+            console.log('[Alarm] Audio context unlocked');
+            setAudioUnlocked(true);
+          });
+        }
+      }
+    };
+
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+  }, [audioUnlocked]);
+
    // Generate a numeric ID from UUID for notifications
    const getNotificationId = useCallback((uuid: string): number => {
      return parseInt(uuid.substring(0, 8), 16) % 100000;
@@ -152,13 +184,29 @@
              gradualVolume,
              vibrationEnabled,
            });
-            // Play alarm sound - CRITICAL: must be called here when notification fires
-            console.log('[Alarm] Playing alarm sound:', soundId);
+          // On native, the notification sound plays via the native file
+          // We also try Web Audio as fallback when app comes to foreground
+          if (!isNative) {
+            console.log('[Alarm] Playing alarm sound via Web Audio:', soundId);
             playAlarm(soundId, gradualVolume, vibrationEnabled).then(success => {
               console.log('[Alarm] Alarm sound started:', success);
             }).catch(err => {
               console.error('[Alarm] Failed to start alarm sound:', err);
             });
+          } else {
+            // On native, vibrate continuously until dismissed
+            console.log('[Alarm] Native notification - starting vibration pattern');
+            const vibrateLoop = () => {
+              if (navigator.vibrate) {
+                navigator.vibrate([500, 200, 500, 200, 500, 500]);
+              }
+            };
+            vibrateLoop();
+            // Continue vibrating every 2.5s
+            const vibInterval = setInterval(vibrateLoop, 2500);
+            // Store interval for cleanup
+            (window as any).__alarmVibInterval = vibInterval;
+          }
            setShowCaptcha(true);
          },
          (action) => {
@@ -166,6 +214,11 @@
            if (action.actionId === 'snooze') {
               // Stop current alarm sound
               stopAlarmSound();
+             // Stop vibration
+             if ((window as any).__alarmVibInterval) {
+               clearInterval((window as any).__alarmVibInterval);
+             }
+             if (navigator.vibrate) navigator.vibrate(0);
               setShowCaptcha(false);
               setActiveAlarmCaptcha(null);
              toast.info('Alarm snoozed for 5 minutes');
@@ -173,6 +226,11 @@
            } else if (action.actionId === 'dismiss') {
               // Stop alarm completely
               stopAlarmSound();
+             // Stop vibration
+             if ((window as any).__alarmVibInterval) {
+               clearInterval((window as any).__alarmVibInterval);
+             }
+             if (navigator.vibrate) navigator.vibrate(0);
               setShowCaptcha(false);
               setActiveAlarmCaptcha(null);
              toast.success('Alarm dismissed');
@@ -182,7 +240,7 @@
        
        return cleanup;
      }
-    }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound]);
+   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound, audioUnlocked]);
  
    // Sync alarms with native notifications when alarms change
    useEffect(() => {
@@ -218,6 +276,11 @@
  
    const handleDismissAlarm = () => {
      stopAlarmSound();
+    // Stop vibration interval
+    if ((window as any).__alarmVibInterval) {
+      clearInterval((window as any).__alarmVibInterval);
+    }
+    if (navigator.vibrate) navigator.vibrate(0);
      setShowCaptcha(false);
      setActiveAlarmCaptcha(null);
    };
