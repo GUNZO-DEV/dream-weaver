@@ -31,10 +31,13 @@
        if (ctx.state === 'suspended') {
          ctx.resume();
        }
+      
+      // Ensure volume is valid
+      const safeVolume = Math.max(0, Math.min(100, volume || 50));
        
        const gainNode = ctx.createGain();
        gainNode.connect(ctx.destination);
-       gainNode.gain.value = volume / 100 * 0.3; // Scale down to comfortable level
+      gainNode.gain.value = safeVolume / 100 * 0.3; // Scale down to comfortable level
        
        let oscillator: OscillatorNode;
        

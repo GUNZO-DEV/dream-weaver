@@ -57,35 +57,43 @@ const Alarm = () => {
      days_of_week: number[] | null;
      enabled: boolean | null;
    }) => {
-     if (!isNative || !alarm.enabled) return;
-     
-     const [hours, minutes] = alarm.time.split(':').map(Number);
-     const notificationId = getNotificationId(alarm.id);
-     const days = alarm.days_of_week || [2, 3, 4, 5, 6]; // Default Mon-Fri
-     
-     await scheduleRepeatingAlarm(
-       notificationId,
-       "⏰ Wake Up!",
-       alarm.label || "Time to wake up",
-       hours,
-       minutes,
-       days
-     );
-     
-     console.log(`Scheduled alarm ${alarm.id} at ${alarm.time} for days ${days.join(',')}`);
+     try {
+       if (!isNative || !alarm.enabled) return;
+       
+       const [hours, minutes] = alarm.time.split(':').map(Number);
+       const notificationId = getNotificationId(alarm.id);
+       const days = alarm.days_of_week || [2, 3, 4, 5, 6]; // Default Mon-Fri
+       
+       await scheduleRepeatingAlarm(
+         notificationId,
+         "⏰ Wake Up!",
+         alarm.label || "Time to wake up",
+         hours,
+         minutes,
+         days
+       );
+       
+       console.log(`Scheduled alarm ${alarm.id} at ${alarm.time} for days ${days.join(',')}`);
+     } catch (error) {
+       console.error("Failed to schedule native notification:", error);
+     }
    }, [isNative, scheduleRepeatingAlarm, getNotificationId]);
  
    // Cancel native notification for an alarm
    const cancelNativeNotification = useCallback(async (alarmId: string, daysCount: number = 7) => {
-     if (!isNative) return;
-     
-     const notificationId = getNotificationId(alarmId);
-     // Cancel all day-specific notifications (id * 10 + dayIndex)
-     for (let i = 0; i < daysCount; i++) {
-       await cancelNativeAlarm(notificationId * 10 + i);
+     try {
+       if (!isNative) return;
+       
+       const notificationId = getNotificationId(alarmId);
+       // Cancel all day-specific notifications (id * 10 + dayIndex)
+       for (let i = 0; i < daysCount; i++) {
+         await cancelNativeAlarm(notificationId * 10 + i);
+       }
+       
+       console.log(`Cancelled native notifications for alarm ${alarmId}`);
+     } catch (error) {
+       console.error("Failed to cancel native notification:", error);
      }
-     
-     console.log(`Cancelled native notifications for alarm ${alarmId}`);
    }, [isNative, cancelNativeAlarm, getNotificationId]);
  
    useEffect(() => {
