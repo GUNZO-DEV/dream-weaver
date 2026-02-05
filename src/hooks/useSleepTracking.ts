@@ -1,4 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+ import { Capacitor } from '@capacitor/core';
+ import { Preferences } from '@capacitor/preferences';
+ 
+ // Platform-aware storage utilities
+ const isNative = Capacitor.isNativePlatform();
+ 
+ const storageGet = async (key: string): Promise<string | null> => {
+   if (isNative) {
+     const { value } = await Preferences.get({ key });
+     return value;
+   }
+   return localStorage.getItem(key);
+ };
+ 
+ const storageSet = async (key: string, value: string): Promise<void> => {
+   if (isNative) {
+     await Preferences.set({ key, value });
+   } else {
+     localStorage.setItem(key, value);
+   }
+ };
+ 
+ const storageRemove = async (key: string): Promise<void> => {
+   if (isNative) {
+     await Preferences.remove({ key });
+   } else {
+     localStorage.removeItem(key);
+   }
+ };
 
 export interface SleepRecord {
   id: string;
@@ -42,25 +71,34 @@ const initialState: SleepTrackingState = {
 };
 
 export const useSleepTracking = () => {
-  const [state, setState] = useState<SleepTrackingState>(() => {
-    const saved = localStorage.getItem('sleepTrackingState');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.startTime) {
-        parsed.startTime = new Date(parsed.startTime);
-      }
-      return parsed;
-    }
-    return initialState;
-  });
+   const [state, setState] = useState<SleepTrackingState>(initialState);
+   const [isLoaded, setIsLoaded] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const stageIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Save state to localStorage
+   // Load initial state from storage
   useEffect(() => {
-    localStorage.setItem('sleepTrackingState', JSON.stringify(state));
-  }, [state]);
+     const loadState = async () => {
+       const saved = await storageGet('sleepTrackingState');
+       if (saved) {
+         const parsed = JSON.parse(saved);
+         if (parsed.startTime) {
+           parsed.startTime = new Date(parsed.startTime);
+         }
+         setState(parsed);
+       }
+       setIsLoaded(true);
+     };
+     loadState();
+   }, []);
+ 
+   // Save state to storage when it changes
+   useEffect(() => {
+     if (isLoaded) {
+       storageSet('sleepTrackingState', JSON.stringify(state));
+     }
+   }, [state, isLoaded]);
 
   // Update duration timer
   useEffect(() => {
@@ -146,13 +184,15 @@ export const useSleepTracking = () => {
     };
 
     // Save to history
-    const history = JSON.parse(localStorage.getItem('sleepHistory') || '[]');
-    history.unshift(record);
-    localStorage.setItem('sleepHistory', JSON.stringify(history.slice(0, 30)));
+     storageGet('sleepHistory').then(historyJson => {
+       const history = historyJson ? JSON.parse(historyJson) : [];
+       history.unshift(record);
+       storageSet('sleepHistory', JSON.stringify(history.slice(0, 30)));
+     });
 
     // Reset state
     setState(initialState);
-    localStorage.removeItem('sleepTrackingState');
+     storageRemove('sleepTrackingState');
 
     return record;
   }, [state.startTime]);
@@ -176,8 +216,8 @@ export const useSleepTracking = () => {
   };
 };
 
-export const getSleepHistory = (): SleepRecord[] => {
-  const history = localStorage.getItem('sleepHistory');
+ export const getSleepHistory = async (): Promise<SleepRecord[]> => {
+   const history = await storageGet('sleepHistory');
   if (!history) return [];
   
   return JSON.parse(history).map((record: any) => ({
@@ -187,9 +227,9 @@ export const getSleepHistory = (): SleepRecord[] => {
   }));
 };
 
-export const getSleepDebt = (): number => {
+ export const getSleepDebt = async (): Promise<number> => {
   const targetHours = 8;
-  const history = getSleepHistory().slice(0, 7);
+   const history = (await getSleepHistory()).slice(0, 7);
   if (history.length === 0) return 0;
   
   const totalTarget = targetHours * history.length * 60;

@@ -1,15 +1,27 @@
 import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp, Target } from "lucide-react";
-import { getSleepDebt, getSleepHistory } from "@/hooks/useSleepTracking";
-import React from "react";
+ import { getSleepDebt, getSleepHistory, SleepRecord } from "@/hooks/useSleepTracking";
+ import React, { useState, useEffect } from "react";
 
 export const SleepDebtCard = React.forwardRef<HTMLDivElement>((_, ref) => {
-  const sleepDebt = getSleepDebt();
-  const history = getSleepHistory().slice(0, 7);
-  const targetMinutes = 8 * 60;
-  
-  const avgSleep = history.length > 0 
-    ? Math.round(history.reduce((acc, r) => acc + r.duration, 0) / history.length)
+   const [sleepDebt, setSleepDebt] = useState(0);
+   const [history, setHistory] = useState<SleepRecord[]>([]);
+ 
+   useEffect(() => {
+     const loadData = async () => {
+       const [debt, records] = await Promise.all([
+         getSleepDebt(),
+         getSleepHistory()
+       ]);
+       setSleepDebt(debt);
+       setHistory(records.slice(0, 7));
+     };
+     loadData();
+   }, []);
+ 
+   const targetMinutes = 8 * 60;
+   const avgSleep = history.length > 0
+     ? Math.round(history.reduce((acc, r) => acc + r.duration, 0) / history.length)
     : 0;
   
   const debtHours = Math.floor(sleepDebt / 60);
