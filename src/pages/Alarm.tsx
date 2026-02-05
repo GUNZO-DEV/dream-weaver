@@ -131,6 +131,7 @@
        const cleanup = addNotificationListeners(
          (notification) => {
            console.log('Notification received:', notification);
+            console.log('[Alarm] Triggering alarm sound from notification');
            
            // Get alarm config from notification extra data
            const notifAlarmId = notification.extra?.alarmId;
@@ -151,16 +152,29 @@
              gradualVolume,
              vibrationEnabled,
            });
-           // Play alarm sound
-           playAlarm(soundId, gradualVolume, vibrationEnabled);
+            // Play alarm sound - CRITICAL: must be called here when notification fires
+            console.log('[Alarm] Playing alarm sound:', soundId);
+            playAlarm(soundId, gradualVolume, vibrationEnabled).then(success => {
+              console.log('[Alarm] Alarm sound started:', success);
+            }).catch(err => {
+              console.error('[Alarm] Failed to start alarm sound:', err);
+            });
            setShowCaptcha(true);
          },
          (action) => {
            console.log('Notification action:', action);
            if (action.actionId === 'snooze') {
+              // Stop current alarm sound
+              stopAlarmSound();
+              setShowCaptcha(false);
+              setActiveAlarmCaptcha(null);
              toast.info('Alarm snoozed for 5 minutes');
              // TODO: Reschedule for 5 minutes later
            } else if (action.actionId === 'dismiss') {
+              // Stop alarm completely
+              stopAlarmSound();
+              setShowCaptcha(false);
+              setActiveAlarmCaptcha(null);
              toast.success('Alarm dismissed');
            }
          }
@@ -168,7 +182,7 @@
        
        return cleanup;
      }
-   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm]);
+    }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound]);
  
    // Sync alarms with native notifications when alarms change
    useEffect(() => {
@@ -183,6 +197,7 @@
    }, [isNative, alarms, scheduleNativeNotification]);
  
    const testAlarm = () => {
+      console.log('[Alarm] Testing alarm sound');
      startAlarm();
      setActiveAlarmCaptcha({
        captchaType: settings.captchaType,
@@ -192,7 +207,12 @@
        vibrationEnabled: true,
      });
      // Play alarm sound using Web Audio API
-     playAlarm('sunrise', false, true);
+      playAlarm('sunrise', false, true).then(success => {
+        console.log('[Alarm] Test alarm sound result:', success);
+        if (!success) {
+          toast.error('Could not play alarm sound - tap screen first to enable audio');
+        }
+      });
      setShowCaptcha(true);
    };
  
