@@ -13,10 +13,39 @@ export interface AlarmNotification {
 export const useNativeAlarm = () => {
   const isNative = Capacitor.isNativePlatform();
 
-  // Request permissions on mount
+  // Request permissions and register actions on mount
   useEffect(() => {
     if (isNative) {
-      requestPermissions();
+      // Request permissions
+      LocalNotifications.requestPermissions().then(result => {
+        console.log('Notification permissions:', result);
+      });
+      
+      // Register action types for notifications
+      LocalNotifications.registerActionTypes({
+        types: [
+          {
+            id: 'ALARM_ACTIONS',
+            actions: [
+              {
+                id: 'snooze',
+                title: 'Snooze (5 min)',
+                foreground: false,
+              },
+              {
+                id: 'dismiss',
+                title: 'Dismiss',
+                destructive: true,
+                foreground: false,
+              },
+            ],
+          },
+        ],
+      }).then(() => {
+        console.log('Alarm actions registered on mount');
+      }).catch(err => {
+        console.error('Failed to register alarm actions:', err);
+      });
     }
   }, [isNative]);
 
@@ -40,9 +69,13 @@ export const useNativeAlarm = () => {
           title: alarm.title,
           body: alarm.body,
           schedule: { at: alarm.scheduledAt },
-          sound: alarm.sound || 'default',
+          sound: alarm.sound || 'beep.wav',
           actionTypeId: 'ALARM_ACTIONS',
           extra: { alarmId: alarm.id },
+          // iOS specific options
+          attachments: undefined,
+          threadIdentifier: 'alarms',
+          summaryArgument: alarm.title,
         },
       ],
     };
@@ -120,10 +153,14 @@ export const useNativeAlarm = () => {
           minute,
         },
         repeats: true,
+        allowWhileIdle: true,
       },
-      sound: 'default',
+      sound: 'beep.wav',
       actionTypeId: 'ALARM_ACTIONS',
       extra: { alarmId: id, dayOfWeek: day },
+      // iOS specific
+      threadIdentifier: 'alarms',
+      summaryArgument: title,
     }));
 
     try {
@@ -149,11 +186,13 @@ export const useNativeAlarm = () => {
               {
                 id: 'snooze',
                 title: 'Snooze',
+                foreground: false,
               },
               {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
+                foreground: false,
               },
             ],
           },
