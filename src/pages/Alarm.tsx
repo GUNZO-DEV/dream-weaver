@@ -1,47 +1,49 @@
  import { motion, AnimatePresence } from "framer-motion";
-import { BottomNav } from "@/components/BottomNav";
-import { StarField } from "@/components/StarField";
-import { AlarmCard } from "@/components/AlarmCard";
-import { AlarmCaptcha } from "@/components/AlarmCaptcha";
-import { NoiseRecorder } from "@/components/NoiseRecorder";
-import { Button } from "@/components/ui/button";
+ import { BottomNav } from "@/components/BottomNav";
+ import { StarField } from "@/components/StarField";
+ import { AlarmCard } from "@/components/AlarmCard";
+ import { AlarmCaptcha } from "@/components/AlarmCaptcha";
+ import { NoiseRecorder } from "@/components/NoiseRecorder";
+ import { Button } from "@/components/ui/button";
  import { Plus, Bell, Clock, Shield, Volume2 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-  import { useState, useEffect, useCallback } from "react";
-import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
-  import { AlarmFormDialog, AlarmFormData } from "@/components/AlarmFormDialog";
+ import { Switch } from "@/components/ui/switch";
+ import { useState, useEffect, useCallback, useMemo } from "react";
+ import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
+ import { AlarmFormDialog, AlarmFormData } from "@/components/AlarmFormDialog";
  import { useAlarms } from "@/hooks/useAlarms";
  import { useNativeAlarm } from "@/hooks/useNativeAlarm";
+ import { useAlarmSound, AlarmSoundType } from "@/hooks/useAlarmSound";
  import { useAuth } from "@/contexts/AuthContext";
  import { toast } from "sonner";
-import { Capacitor } from "@capacitor/core";
- import { useRef, useMemo } from "react";
-
-const Alarm = () => {
+ import { Capacitor } from "@capacitor/core";
+ 
+ const Alarm = () => {
    const { user } = useAuth();
    const { alarms, isLoading, error: alarmsError, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
-    const { 
-      scheduleRepeatingAlarm, 
-      cancelAlarm: cancelNativeAlarm, 
-      isNative, 
-      registerAlarmActions,
-      addNotificationListeners,
-      requestPermissions 
-    } = useNativeAlarm();
-  const [smartWake, setSmartWake] = useState(true);
-  const [vibration, setVibration] = useState(true);
-  const [showCaptcha, setShowCaptcha] = useState(false);
+   const { 
+     scheduleRepeatingAlarm, 
+     cancelAlarm: cancelNativeAlarm, 
+     isNative, 
+     registerAlarmActions,
+     addNotificationListeners,
+     requestPermissions 
+   } = useNativeAlarm();
+   const { playAlarm, stopAlarm: stopAlarmSound } = useAlarmSound();
+   
+   const [smartWake, setSmartWake] = useState(true);
+   const [vibration, setVibration] = useState(true);
+   const [showCaptcha, setShowCaptcha] = useState(false);
    const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
    const [editingAlarm, setEditingAlarm] = useState<string | null>(null);
    const [activeAlarmCaptcha, setActiveAlarmCaptcha] = useState<{
      captchaType: CaptchaType;
      difficulty: number;
+     soundId?: AlarmSoundType;
+     gradualVolume?: boolean;
+     vibrationEnabled?: boolean;
    } | null>(null);
    
-   // Audio ref for persistent alarm sound
-   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
-  
-  const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
+   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
  
    // Get the alarm being edited
    const alarmToEdit = useMemo(() => {
@@ -49,23 +51,6 @@ const Alarm = () => {
      return alarms.find((a) => a.id === editingAlarm);
    }, [editingAlarm, alarms]);
  
-   // Start persistent alarm sound
-   const startAlarmSound = () => {
-     if (!alarmAudioRef.current) {
-       alarmAudioRef.current = new Audio('/alarm-sound.mp3');
-       alarmAudioRef.current.loop = true;
-     }
-     alarmAudioRef.current.play().catch(console.error);
-   };
- 
-   // Stop persistent alarm sound
-   const stopAlarmSound = () => {
-     if (alarmAudioRef.current) {
-       alarmAudioRef.current.pause();
-       alarmAudioRef.current.currentTime = 0;
-     }
-   };
-
    // Debug logging on mount
    useEffect(() => {
      console.log('[Alarm] Component mounted');
@@ -73,7 +58,7 @@ const Alarm = () => {
      console.log('[Alarm] isNative:', isNative);
      console.log('[Alarm] User:', user?.id);
    }, [isNative, user]);
-
+ 
    // Log alarms state changes
    useEffect(() => {
      console.log('[Alarm] Alarms updated:', alarms?.length ?? 0, 'items');
@@ -81,7 +66,7 @@ const Alarm = () => {
        console.error('[Alarm] Error loading alarms:', alarmsError);
      }
    }, [alarms, alarmsError]);
-
+ 
    // Generate a numeric ID from UUID for notifications
    const getNotificationId = useCallback((uuid: string): number => {
      return parseInt(uuid.substring(0, 8), 16) % 100000;
@@ -146,8 +131,28 @@ const Alarm = () => {
        const cleanup = addNotificationListeners(
          (notification) => {
            console.log('Notification received:', notification);
+           
+           // Get alarm config from notification extra data
+           const notifAlarmId = notification.extra?.alarmId;
+           const foundAlarm = alarms?.find(a => a.id === notifAlarmId || getNotificationId(a.id) === notifAlarmId);
+           
+           const soundId = (foundAlarm?.sound_id as AlarmSoundType) || 'sunrise';
+           const gradualVolume = foundAlarm?.gradual_volume ?? true;
+           const vibrationEnabled = foundAlarm?.vibration ?? true;
+           const captchaType = (foundAlarm?.captcha_type as CaptchaType) || 'math';
+           const captchaDifficulty = foundAlarm?.captcha_difficulty || 2;
+           
            // Show the CAPTCHA when alarm fires
            startAlarm();
+           setActiveAlarmCaptcha({
+             captchaType,
+             difficulty: captchaDifficulty,
+             soundId,
+             gradualVolume,
+             vibrationEnabled,
+           });
+           // Play alarm sound
+           playAlarm(soundId, gradualVolume, vibrationEnabled);
            setShowCaptcha(true);
          },
          (action) => {
@@ -163,7 +168,7 @@ const Alarm = () => {
        
        return cleanup;
      }
-    }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm]);
+   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm]);
  
    // Sync alarms with native notifications when alarms change
    useEffect(() => {
@@ -177,79 +182,83 @@ const Alarm = () => {
      }
    }, [isNative, alarms, scheduleNativeNotification]);
  
-  const testAlarm = () => {
-    startAlarm();
+   const testAlarm = () => {
+     startAlarm();
      setActiveAlarmCaptcha({
        captchaType: settings.captchaType,
        difficulty: settings.captchaDifficulty,
+       soundId: 'sunrise',
+       gradualVolume: false,
+       vibrationEnabled: true,
      });
-     startAlarmSound();
-    setShowCaptcha(true);
-  };
+     // Play alarm sound using Web Audio API
+     playAlarm('sunrise', false, true);
+     setShowCaptcha(true);
+   };
  
    const handleDismissAlarm = () => {
      stopAlarmSound();
      setShowCaptcha(false);
      setActiveAlarmCaptcha(null);
    };
-
-    const handleFormSubmit = async (data: AlarmFormData) => {
+ 
+   const handleFormSubmit = async (data: AlarmFormData) => {
      if (!user) {
-        toast.error("Please log in to manage alarms");
+       toast.error("Please log in to manage alarms");
        return;
      }
  
-      console.log('[Alarm] Submitting alarm:', data);
-
+     console.log('[Alarm] Submitting alarm:', data);
+ 
      try {
-        if (editingAlarm) {
-          // Update existing alarm
-          await updateAlarm.mutateAsync({
-            id: editingAlarm,
-            time: data.time,
-            label: data.label || null,
-            days_of_week: data.days_of_week,
-            wake_window_minutes: data.wake_window_minutes,
-            captcha_enabled: data.captcha_enabled,
-            captcha_type: data.captcha_type,
-            captcha_difficulty: data.captcha_difficulty,
-            vibration: data.vibration,
-            gradual_volume: data.gradual_volume,
-            sound_id: data.sound_id,
-          });
-          toast.success("Alarm updated!");
-        } else {
-          // Create new alarm
-          const result = await addAlarm.mutateAsync({
-            time: data.time,
-            label: data.label || null,
-            enabled: true,
-            days_of_week: data.days_of_week,
-            wake_window_minutes: data.wake_window_minutes,
-            captcha_enabled: data.captcha_enabled,
-            captcha_type: data.captcha_type,
-            captcha_difficulty: data.captcha_difficulty,
-            vibration: data.vibration,
-            gradual_volume: data.gradual_volume,
-            sound_id: data.sound_id,
-          });
+       if (editingAlarm) {
+         // Update existing alarm
+         await updateAlarm.mutateAsync({
+           id: editingAlarm,
+           time: data.time,
+           label: data.label || null,
+           days_of_week: data.days_of_week,
+           wake_window_minutes: data.wake_window_minutes,
+           captcha_enabled: data.captcha_enabled,
+           captcha_type: data.captcha_type,
+           captcha_difficulty: data.captcha_difficulty,
+           vibration: data.vibration,
+           gradual_volume: data.gradual_volume,
+           sound_id: data.sound_id,
+         });
+         toast.success("Alarm updated!");
+       } else {
+         // Create new alarm
+         const result = await addAlarm.mutateAsync({
+           time: data.time,
+           label: data.label || null,
+           enabled: true,
+           days_of_week: data.days_of_week,
+           wake_window_minutes: data.wake_window_minutes,
+           captcha_enabled: data.captcha_enabled,
+           captcha_type: data.captcha_type,
+           captcha_difficulty: data.captcha_difficulty,
+           vibration: data.vibration,
+           gradual_volume: data.gradual_volume,
+           sound_id: data.sound_id,
+         });
  
-          console.log('[Alarm] Alarm added successfully:', result?.id);
-
-          // Schedule native notification if on device
-          if (isNative && result) {
-            console.log('[Alarm] Scheduling native notification for:', result.id);
-            await scheduleNativeNotification(result);
-          }
+         console.log('[Alarm] Alarm added successfully:', result?.id);
  
-          toast.success("Alarm added!");
-        }
-        
-        setIsFormDialogOpen(false);
-        setEditingAlarm(null);
+         // Schedule native notification if on device
+         if (isNative && result) {
+           console.log('[Alarm] Scheduling native notification for:', result.id);
+           await scheduleNativeNotification(result);
+         }
+ 
+         toast.success("Alarm added!");
+       }
+       
+       setIsFormDialogOpen(false);
+       setEditingAlarm(null);
      } catch (error) {
-        console.error('[Alarm] Failed to save alarm:', error);
-        toast.error("Failed to save alarm");
+       console.error('[Alarm] Failed to save alarm:', error);
+       toast.error("Failed to save alarm");
      }
    };
  
@@ -306,17 +315,17 @@ const Alarm = () => {
      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
    };
  
-  return (
-    <div className="min-h-screen pb-24 relative">
-      <StarField />
-
-      {showCaptcha && (
-        <AlarmCaptcha 
-          onDismiss={handleDismissAlarm} 
-          captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
-          difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
-        />
-      )}
+   return (
+     <div className="min-h-screen pb-24 relative">
+       <StarField />
+ 
+       {showCaptcha && (
+         <AlarmCaptcha 
+           onDismiss={handleDismissAlarm} 
+           captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
+           difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
+         />
+       )}
  
        {/* Alarm Form Dialog */}
        <AlarmFormDialog
@@ -345,24 +354,24 @@ const Alarm = () => {
              : undefined
          }
        />
-
-      <motion.header
-        className="px-6 pt-12 pb-6 relative z-10"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground">Smart Alarm</h1>
-        <p className="text-muted-foreground text-sm mt-1">Wake up at the optimal time</p>
-      </motion.header>
-
-      <main className="px-6 space-y-6 relative z-10">
-        {/* Alarms List */}
-        <motion.section
-          className="space-y-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
+ 
+       <motion.header
+         className="px-6 pt-12 pb-6 relative z-10"
+         initial={{ opacity: 0, y: -20 }}
+         animate={{ opacity: 1, y: 0 }}
+       >
+         <h1 className="text-2xl font-bold text-foreground">Smart Alarm</h1>
+         <p className="text-muted-foreground text-sm mt-1">Wake up at the optimal time</p>
+       </motion.header>
+ 
+       <main className="px-6 space-y-6 relative z-10">
+         {/* Alarms List */}
+         <motion.section
+           className="space-y-4"
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           transition={{ delay: 0.1 }}
+         >
            {isLoading ? (
              <div className="text-center text-muted-foreground py-8">Loading alarms...</div>
            ) : !user ? (
@@ -375,142 +384,126 @@ const Alarm = () => {
                  label={alarm.label || "Alarm"}
                  wakeWindow={alarm.wake_window_minutes || 30}
                  enabled={alarm.enabled ?? true}
-                  daysOfWeek={alarm.days_of_week || []}
+                 daysOfWeek={alarm.days_of_week || []}
                  onToggle={(enabled) => handleToggleAlarm(alarm.id, enabled)}
                  onDelete={() => handleDeleteAlarm(alarm.id)}
-                  onEdit={() => handleEditAlarm(alarm.id)}
+                 onEdit={() => handleEditAlarm(alarm.id)}
                />
              ))
            ) : (
              <div className="text-center text-muted-foreground py-8">No alarms set. Add one below!</div>
            )}
-        </motion.section>
-
-        {/* Add Alarm Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-            <Button 
-              variant="outline" 
-              className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
-              disabled={!user}
-              onClick={handleAddNewAlarm}
-            >
-              <Plus className="mr-2" size={20} />
-              Add New Alarm
-            </Button>
-        </motion.div>
-
-        {/* Test CAPTCHA Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-        >
-          <Button 
-            onClick={testAlarm}
-            variant="outline" 
-            className="w-full h-12 rounded-xl"
-          >
-            <Shield className="mr-2" size={18} />
-            Test CAPTCHA
-          </Button>
-        </motion.div>
+         </motion.section>
  
-        {/* Smart Wake Settings */}
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-4">Smart Wake Settings</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Clock size={18} className="text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Smart Wake</p>
-                  <p className="text-xs text-muted-foreground">Wake during light sleep</p>
-                </div>
-              </div>
-              <Switch checked={smartWake} onCheckedChange={setSmartWake} />
-            </div>
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Bell size={18} className="text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Vibration</p>
-                  <p className="text-xs text-muted-foreground">Gentle haptic feedback</p>
-                </div>
-              </div>
-              <Switch checked={vibration} onCheckedChange={setVibration} />
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Snore/Noise Recording */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-        >
-          <NoiseRecorder />
-        </motion.div>
-
-        {/* How it Works */}
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-4">How Smart Wake Works</h3>
-          <div className="space-y-4">
-            {[
-              { step: 1, title: "Track Your Sleep", desc: "We monitor your sleep cycles throughout the night" },
-              { step: 2, title: "Detect Light Sleep", desc: "Find the optimal wake-up moment in your cycle" },
-              { step: 3, title: "Gentle Wake", desc: "Wake you during light sleep for a refreshed feeling" },
-            ].map((item) => (
-              <div key={item.step} className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0">
-                  {item.step}
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* Alarm Sounds */}
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Alarm Sound</h3>
-              <p className="text-sm text-muted-foreground">Sunrise Melody</p>
-            </div>
-            <span className="text-primary font-medium">Change</span>
-          </div>
-        </motion.section>
-      </main>
-
-      <BottomNav />
-    </div>
-  );
-};
-
-export default Alarm;
+         {/* Add Alarm Button */}
+         <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.3 }}
+         >
+           <Button 
+             variant="outline" 
+             className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
+             disabled={!user}
+             onClick={handleAddNewAlarm}
+           >
+             <Plus className="mr-2" size={20} />
+             Add New Alarm
+           </Button>
+         </motion.div>
+ 
+         {/* Test CAPTCHA Button */}
+         <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.35 }}
+         >
+           <Button 
+             onClick={testAlarm}
+             variant="outline" 
+             className="w-full h-12 rounded-xl"
+           >
+             <Shield className="mr-2" size={18} />
+             Test Alarm Sound
+           </Button>
+         </motion.div>
+ 
+         {/* Smart Wake Settings */}
+         <motion.section
+           className="glass-card rounded-3xl p-6"
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.4 }}
+         >
+           <h3 className="text-lg font-semibold text-foreground mb-4">Smart Wake Settings</h3>
+           <div className="space-y-4">
+             <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                   <Clock size={18} className="text-primary" />
+                 </div>
+                 <div>
+                   <p className="font-medium text-foreground">Smart Wake</p>
+                   <p className="text-xs text-muted-foreground">Wake during light sleep</p>
+                 </div>
+               </div>
+               <Switch checked={smartWake} onCheckedChange={setSmartWake} />
+             </div>
+             <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                   <Bell size={18} className="text-primary" />
+                 </div>
+                 <div>
+                   <p className="font-medium text-foreground">Vibration</p>
+                   <p className="text-xs text-muted-foreground">Gentle haptic feedback</p>
+                 </div>
+               </div>
+               <Switch checked={vibration} onCheckedChange={setVibration} />
+             </div>
+           </div>
+         </motion.section>
+ 
+         {/* Snore/Noise Recording */}
+         <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.45 }}
+         >
+           <NoiseRecorder />
+         </motion.div>
+ 
+         {/* How it Works */}
+         <motion.section
+           className="glass-card rounded-3xl p-6"
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.5 }}
+         >
+           <h3 className="text-lg font-semibold text-foreground mb-4">How Smart Wake Works</h3>
+           <div className="space-y-4">
+             {[
+               { step: 1, title: "Track Your Sleep", desc: "We monitor your sleep cycles throughout the night" },
+               { step: 2, title: "Detect Light Sleep", desc: "Find the optimal wake-up moment in your cycle" },
+               { step: 3, title: "Gentle Wake", desc: "Wake you during light sleep for a refreshed feeling" },
+             ].map((item) => (
+               <div key={item.step} className="flex items-start gap-4">
+                 <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0">
+                   {item.step}
+                 </div>
+                 <div>
+                   <p className="font-medium text-foreground">{item.title}</p>
+                   <p className="text-sm text-muted-foreground">{item.desc}</p>
+                 </div>
+               </div>
+             ))}
+           </div>
+         </motion.section>
+       </main>
+ 
+       <BottomNav />
+     </div>
+   );
+ };
+ 
+ export default Alarm;

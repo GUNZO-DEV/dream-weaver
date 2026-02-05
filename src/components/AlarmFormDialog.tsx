@@ -27,8 +27,10 @@
    Shield,
    Music,
    Timer,
+   Play,
  } from "lucide-react";
  import { CaptchaType } from "@/hooks/useAlarmCaptcha";
+ import { useAlarmSound, AlarmSoundType } from "@/hooks/useAlarmSound";
  
  const DAYS = [
    { id: 0, label: "S", name: "Sunday" },
@@ -41,14 +43,14 @@
  ];
  
  const ALARM_SOUNDS = [
-   { id: "sunrise", name: "Sunrise Melody", category: "Gentle" },
-   { id: "birds", name: "Morning Birds", category: "Nature" },
-   { id: "ocean", name: "Ocean Waves", category: "Nature" },
-   { id: "piano", name: "Soft Piano", category: "Gentle" },
-   { id: "digital", name: "Digital Beep", category: "Classic" },
-   { id: "alarm", name: "Classic Alarm", category: "Classic" },
-   { id: "chimes", name: "Wind Chimes", category: "Gentle" },
-   { id: "forest", name: "Forest Morning", category: "Nature" },
+   { id: "sunrise" as AlarmSoundType, name: "Sunrise Melody", category: "Gentle" },
+   { id: "gentle" as AlarmSoundType, name: "Gentle Wake", category: "Gentle" },
+   { id: "birds" as AlarmSoundType, name: "Morning Birds", category: "Nature" },
+   { id: "ocean" as AlarmSoundType, name: "Ocean Waves", category: "Nature" },
+   { id: "digital" as AlarmSoundType, name: "Digital Beep", category: "Classic" },
+   { id: "classic" as AlarmSoundType, name: "Classic Alarm", category: "Classic" },
+   { id: "chimes" as AlarmSoundType, name: "Wind Chimes", category: "Gentle" },
+   { id: "radar" as AlarmSoundType, name: "Radar", category: "Classic" },
  ];
  
  const CAPTCHA_OPTIONS: { type: CaptchaType; label: string; icon: React.ReactNode; desc: string }[] = [
@@ -122,13 +124,17 @@
      ...initialData,
    });
    const [activeSection, setActiveSection] = useState<string | null>(null);
+   const { previewSound, stopAlarm } = useAlarmSound();
  
    useEffect(() => {
      if (open) {
        setFormData({ ...defaultFormData, ...initialData });
        setActiveSection(null);
+     } else {
+       // Stop any preview when dialog closes
+       stopAlarm();
      }
-   }, [open, initialData]);
+   }, [open, initialData, stopAlarm]);
  
    const updateField = <K extends keyof AlarmFormData>(
      field: K,
@@ -152,6 +158,10 @@
      if (JSON.stringify(days.sort()) === JSON.stringify([1, 2, 3, 4, 5])) return "Weekdays";
      if (JSON.stringify(days.sort()) === JSON.stringify([0, 6])) return "Weekends";
      return days.map((d) => DAYS[d].label).join(", ");
+   };
+ 
+   const handlePreviewSound = (soundId: AlarmSoundType) => {
+     previewSound(soundId);
    };
  
    const handleSubmit = () => {
@@ -240,15 +250,23 @@
                        {ALARM_SOUNDS.map((sound) => (
                          <button
                            key={sound.id}
-                           onClick={() => updateField("sound_id", sound.id)}
+                           onClick={() => {
+                             updateField("sound_id", sound.id);
+                             handlePreviewSound(sound.id);
+                           }}
                            className={`p-3 rounded-xl text-left transition-all ${
                              formData.sound_id === sound.id
                                ? "bg-primary text-primary-foreground"
                                : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
                            }`}
                          >
-                           <p className="text-sm font-medium">{sound.name}</p>
-                           <p className="text-xs opacity-70">{sound.category}</p>
+                           <div className="flex items-center justify-between">
+                             <div>
+                               <p className="text-sm font-medium">{sound.name}</p>
+                               <p className="text-xs opacity-70">{sound.category}</p>
+                             </div>
+                             <Play size={14} className="opacity-50" />
+                           </div>
                          </button>
                        ))}
                      </div>
