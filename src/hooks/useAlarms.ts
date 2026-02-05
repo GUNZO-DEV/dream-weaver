@@ -10,7 +10,11 @@ type AlarmInsert = TablesInsert<'alarms'>;
 type AlarmUpdate = TablesUpdate<'alarms'>;
 
  // Use native client on iOS/Android, web client on browser
- const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : webSupabase;
+ const getClient = () => {
+   const isNative = Capacitor.isNativePlatform();
+   console.log('[useAlarms] getClient - isNative:', isNative);
+   return isNative ? nativeSupabase : webSupabase;
+ };
  
 export const useAlarms = () => {
   const { user } = useAuth();
@@ -20,13 +24,21 @@ export const useAlarms = () => {
   const { data: alarms, isLoading, error } = useQuery({
     queryKey: ['alarms', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) {
+        console.log('[useAlarms] No user, returning empty array');
+        return [];
+      }
+      console.log('[useAlarms] Fetching alarms for user:', user.id);
        const { data, error } = await getClient()
         .from('alarms')
         .select('*')
         .eq('user_id', user.id)
         .order('time', { ascending: true });
-      if (error) throw error;
+      if (error) {
+        console.error('[useAlarms] Error fetching alarms:', error);
+        throw error;
+      }
+      console.log('[useAlarms] Fetched', data?.length ?? 0, 'alarms');
       return data;
     },
     enabled: !!user,
@@ -35,13 +47,21 @@ export const useAlarms = () => {
   // Add a new alarm
   const addAlarm = useMutation({
     mutationFn: async (alarm: Omit<AlarmInsert, 'user_id'>) => {
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.error('[useAlarms] Cannot add alarm - user not authenticated');
+        throw new Error('User not authenticated');
+      }
+      console.log('[useAlarms] Adding alarm for user:', user.id);
        const { data, error } = await getClient()
         .from('alarms')
         .insert({ ...alarm, user_id: user.id })
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error('[useAlarms] Error adding alarm:', error);
+        throw error;
+      }
+      console.log('[useAlarms] Alarm added:', data?.id);
       return data;
     },
     onSuccess: () => {

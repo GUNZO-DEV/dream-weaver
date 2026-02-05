@@ -1,5 +1,6 @@
  import { useState, useRef, useCallback, useEffect } from 'react';
  import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
  
  // Using data URIs for simple generated tones as fallback
  // In production, replace these with actual hosted audio files in /public/sounds/
@@ -17,7 +18,13 @@
    
    private getContext(): AudioContext {
      if (!this.audioContext) {
-       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        console.error('[SoundGenerator] AudioContext not available');
+        throw new Error('AudioContext not supported');
+      }
+      this.audioContext = new AudioContextClass();
+      console.log('[SoundGenerator] Created AudioContext, state:', this.audioContext.state);
      }
      return this.audioContext;
    }
@@ -25,15 +32,22 @@
    // Generate different sound types using oscillators and noise
    createSound(type: string, volume: number): boolean {
      try {
+      console.log(`[SoundGenerator] Creating sound: ${type}, volume: ${volume}`);
        const ctx = this.getContext();
        
        // Resume context if suspended (iOS requirement)
        if (ctx.state === 'suspended') {
-         ctx.resume();
+        console.log('[SoundGenerator] AudioContext suspended, resuming...');
+        ctx.resume().then(() => {
+          console.log('[SoundGenerator] AudioContext resumed, new state:', ctx.state);
+        }).catch(err => {
+          console.error('[SoundGenerator] Failed to resume AudioContext:', err);
+        });
        }
       
       // Ensure volume is valid
       const safeVolume = Math.max(0, Math.min(100, volume || 50));
+      console.log(`[SoundGenerator] Using safe volume: ${safeVolume}`);
        
        const gainNode = ctx.createGain();
        gainNode.connect(ctx.destination);
@@ -52,6 +66,7 @@
            noiseSource.connect(gainNode);
            noiseSource.start();
            this.oscillators.set(type, { oscillator: noiseSource as any, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          case 'ocean':
@@ -70,6 +85,7 @@
            oscillator.connect(gainNode);
            oscillator.start();
            this.oscillators.set(type, { oscillator, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          case 'wind':
@@ -85,6 +101,7 @@
            filter.connect(gainNode);
            windSource.start();
            this.oscillators.set(type, { oscillator: windSource as any, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          case 'forest':
@@ -104,6 +121,7 @@
            oscillator.connect(gainNode);
            oscillator.start();
            this.oscillators.set(type, { oscillator, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          case 'fireplace':
@@ -119,6 +137,7 @@
            fireFilter.connect(gainNode);
            fireSource.start();
            this.oscillators.set(type, { oscillator: fireSource as any, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          case 'café':
@@ -134,9 +153,11 @@
            cafeFilter.connect(gainNode);
            cafeSource.start();
            this.oscillators.set(type, { oscillator: cafeSource as any, gainNode });
+          console.log(`[SoundGenerator] ${type} started successfully`);
            return true;
            
          default:
+          console.warn(`[SoundGenerator] Unknown sound type: ${type}`);
            return false;
        }
      } catch (error) {
@@ -181,8 +202,10 @@
        try {
          sound.oscillator.stop();
          sound.gainNode.disconnect();
+        console.log(`[SoundGenerator] Stopped sound: ${type}`);
        } catch (e) {
          // Already stopped
+        console.log(`[SoundGenerator] Sound already stopped: ${type}`);
        }
        this.oscillators.delete(type);
      }
@@ -196,6 +219,7 @@
    }
    
    stopAll() {
+    console.log('[SoundGenerator] Stopping all sounds');
      this.oscillators.forEach((_, type) => this.stopSound(type));
    }
  }
@@ -209,6 +233,7 @@
  
    // Initialize sound generator
    useEffect(() => {
+    console.log('[useSoundPlayer] Initializing, platform:', Capacitor.getPlatform());
      soundGenerator.current = new SoundGenerator();
      
      return () => {
@@ -228,8 +253,10 @@
  
    const toggleSound = useCallback((soundName: string) => {
      const key = soundName.toLowerCase();
+    console.log(`[useSoundPlayer] Toggle sound: ${soundName}, key: ${key}`);
  
      const isCurrentlyPlaying = activeSounds[key]?.isPlaying ?? false;
+    console.log(`[useSoundPlayer] Currently playing: ${isCurrentlyPlaying}`);
  
      if (isCurrentlyPlaying) {
        // Stop the sound
@@ -241,6 +268,7 @@
      } else {
        // Start the sound
        const success = soundGenerator.current?.createSound(key, masterVolume);
+      console.log(`[useSoundPlayer] Create sound result: ${success}`);
        
        if (success) {
          setActiveSounds(prev => ({

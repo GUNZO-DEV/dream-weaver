@@ -16,6 +16,7 @@ import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
  import { Input } from "@/components/ui/input";
  import { Label } from "@/components/ui/label";
  import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 
 const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode; desc: string }[] = [
   { type: 'math', label: 'Math', icon: <Calculator size={18} />, desc: 'Solve equations' },
@@ -26,7 +27,7 @@ const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode;
 
 const Alarm = () => {
    const { user } = useAuth();
-   const { alarms, isLoading, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
+   const { alarms, isLoading, error: alarmsError, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
     const { 
       scheduleRepeatingAlarm, 
       cancelAlarm: cancelNativeAlarm, 
@@ -43,6 +44,22 @@ const Alarm = () => {
    const [newAlarmLabel, setNewAlarmLabel] = useState("");
   
   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
+
+   // Debug logging on mount
+   useEffect(() => {
+     console.log('[Alarm] Component mounted');
+     console.log('[Alarm] Platform:', Capacitor.getPlatform());
+     console.log('[Alarm] isNative:', isNative);
+     console.log('[Alarm] User:', user?.id);
+   }, [isNative, user]);
+
+   // Log alarms state changes
+   useEffect(() => {
+     console.log('[Alarm] Alarms updated:', alarms?.length ?? 0, 'items');
+     if (alarmsError) {
+       console.error('[Alarm] Error loading alarms:', alarmsError);
+     }
+   }, [alarms, alarmsError]);
 
    // Generate a numeric ID from UUID for notifications
    const getNotificationId = useCallback((uuid: string): number => {
@@ -98,8 +115,11 @@ const Alarm = () => {
  
    useEffect(() => {
      if (isNative) {
+       console.log('[Alarm] Setting up native alarm features');
        registerAlarmActions();
-       requestPermissions();
+       requestPermissions().then(result => {
+         console.log('[Alarm] Notification permissions:', result);
+       });
        
        // Set up notification listeners
        const cleanup = addNotificationListeners(
@@ -147,6 +167,8 @@ const Alarm = () => {
        return;
      }
  
+     console.log('[Alarm] Adding alarm:', { time: newAlarmTime, label: newAlarmLabel });
+
      try {
        const result = await addAlarm.mutateAsync({
          time: newAlarmTime,
@@ -161,8 +183,11 @@ const Alarm = () => {
          gradual_volume: true,
        });
  
+       console.log('[Alarm] Alarm added successfully:', result?.id);
+
         // Schedule native notification if on device (will be handled by useEffect sync)
         if (isNative && result) {
+          console.log('[Alarm] Scheduling native notification for:', result.id);
           await scheduleNativeNotification(result);
        }
  
@@ -171,8 +196,8 @@ const Alarm = () => {
        setNewAlarmTime("07:00");
        setNewAlarmLabel("");
      } catch (error) {
+       console.error('[Alarm] Failed to add alarm:', error);
        toast.error("Failed to add alarm");
-       console.error(error);
      }
    };
  
