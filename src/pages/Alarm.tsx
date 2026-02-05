@@ -7,7 +7,7 @@ import { NoiseRecorder } from "@/components/NoiseRecorder";
 import { Button } from "@/components/ui/button";
 import { Plus, Bell, Clock, Calculator, Brain, Type, Smartphone, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
- import { useState, useEffect } from "react";
+  import { useState, useEffect, useCallback } from "react";
 import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
  import { useAlarms } from "@/hooks/useAlarms";
  import { useNativeAlarm } from "@/hooks/useNativeAlarm";
@@ -27,7 +27,14 @@ const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode;
 const Alarm = () => {
    const { user } = useAuth();
    const { alarms, isLoading, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
-   const { scheduleRepeatingAlarm, cancelAlarm: cancelNativeAlarm, isNative, registerAlarmActions } = useNativeAlarm();
+    const { 
+      scheduleRepeatingAlarm, 
+      cancelAlarm: cancelNativeAlarm, 
+      isNative, 
+      registerAlarmActions,
+      addNotificationListeners,
+      requestPermissions 
+    } = useNativeAlarm();
   const [smartWake, setSmartWake] = useState(true);
   const [vibration, setVibration] = useState(true);
   const [showCaptcha, setShowCaptcha] = useState(false);
@@ -37,11 +44,89 @@ const Alarm = () => {
   
   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
 
+   // Generate a numeric ID from UUID for notifications
+   const getNotificationId = useCallback((uuid: string): number => {
+     return parseInt(uuid.substring(0, 8), 16) % 100000;
+   }, []);
+ 
+   // Schedule native notification for an alarm
+   const scheduleNativeNotification = useCallback(async (alarm: {
+     id: string;
+     time: string;
+     label: string | null;
+     days_of_week: number[] | null;
+     enabled: boolean | null;
+   }) => {
+     if (!isNative || !alarm.enabled) return;
+     
+     const [hours, minutes] = alarm.time.split(':').map(Number);
+     const notificationId = getNotificationId(alarm.id);
+     const days = alarm.days_of_week || [2, 3, 4, 5, 6]; // Default Mon-Fri
+     
+     await scheduleRepeatingAlarm(
+       notificationId,
+       "⏰ Wake Up!",
+       alarm.label || "Time to wake up",
+       hours,
+       minutes,
+       days
+     );
+     
+     console.log(`Scheduled alarm ${alarm.id} at ${alarm.time} for days ${days.join(',')}`);
+   }, [isNative, scheduleRepeatingAlarm, getNotificationId]);
+ 
+   // Cancel native notification for an alarm
+   const cancelNativeNotification = useCallback(async (alarmId: string, daysCount: number = 7) => {
+     if (!isNative) return;
+     
+     const notificationId = getNotificationId(alarmId);
+     // Cancel all day-specific notifications (id * 10 + dayIndex)
+     for (let i = 0; i < daysCount; i++) {
+       await cancelNativeAlarm(notificationId * 10 + i);
+     }
+     
+     console.log(`Cancelled native notifications for alarm ${alarmId}`);
+   }, [isNative, cancelNativeAlarm, getNotificationId]);
+ 
    useEffect(() => {
      if (isNative) {
        registerAlarmActions();
+       requestPermissions();
+       
+       // Set up notification listeners
+       const cleanup = addNotificationListeners(
+         (notification) => {
+           console.log('Notification received:', notification);
+           // Show the CAPTCHA when alarm fires
+           startAlarm();
+           setShowCaptcha(true);
+         },
+         (action) => {
+           console.log('Notification action:', action);
+           if (action.actionId === 'snooze') {
+             toast.info('Alarm snoozed for 5 minutes');
+             // TODO: Reschedule for 5 minutes later
+           } else if (action.actionId === 'dismiss') {
+             toast.success('Alarm dismissed');
+           }
+         }
+       );
+       
+       return cleanup;
      }
-   }, [isNative, registerAlarmActions]);
+    }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm]);
+ 
+   // Sync alarms with native notifications when alarms change
+   useEffect(() => {
+     if (isNative && alarms && alarms.length > 0) {
+       // Schedule enabled alarms
+       alarms.forEach(alarm => {
+         if (alarm.enabled) {
+           scheduleNativeNotification(alarm);
+         }
+       });
+     }
+   }, [isNative, alarms, scheduleNativeNotification]);
  
   const testAlarm = () => {
     startAlarm();
@@ -68,17 +153,9 @@ const Alarm = () => {
          gradual_volume: true,
        });
  
-       // Schedule native notification if on device
-       if (isNative && result) {
-         const [hours, minutes] = newAlarmTime.split(':').map(Number);
-         await scheduleRepeatingAlarm(
-           parseInt(result.id.substring(0, 8), 16) % 100000,
-           "Wake Up!",
-           newAlarmLabel || "Time to wake up",
-           hours,
-           minutes,
-           [2, 3, 4, 5, 6] // Mon-Fri in Capacitor format (1=Sun, 2=Mon, etc.)
-         );
+        // Schedule native notification if on device (will be handled by useEffect sync)
+        if (isNative && result) {
+          await scheduleNativeNotification(result);
        }
  
        toast.success("Alarm added!");
@@ -94,6 +171,19 @@ const Alarm = () => {
    const handleToggleAlarm = async (id: string, enabled: boolean) => {
      try {
        await toggleAlarm.mutateAsync({ id, enabled });
+       
+       // Update native notification
+       if (isNative) {
+         if (enabled) {
+           const alarm = alarms?.find(a => a.id === id);
+           if (alarm) {
+             await scheduleNativeNotification({ ...alarm, enabled: true });
+           }
+         } else {
+           await cancelNativeNotification(id);
+         }
+       }
+       
        toast.success(enabled ? "Alarm enabled" : "Alarm disabled");
      } catch (error) {
        toast.error("Failed to update alarm");
@@ -102,6 +192,11 @@ const Alarm = () => {
  
    const handleDeleteAlarm = async (id: string) => {
      try {
+       // Cancel native notification first
+       if (isNative) {
+         await cancelNativeNotification(id);
+       }
+       
        await deleteAlarm.mutateAsync(id);
        toast.success("Alarm deleted");
      } catch (error) {
