@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+ import { Capacitor } from '@capacitor/core';
+ import { supabase } from '@/integrations/supabase/client';
+ import { nativeSupabase } from '@/lib/supabaseClient';
+ 
+ // Use native-compatible client on iOS/Android, standard client on web
+ const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : supabase;
 
 interface AuthContextType {
   user: User | null;
@@ -20,9 +25,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let isMounted = true;
+     const client = getClient();
 
     // Listener for ONGOING auth changes (does NOT control loading)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+     const { data: { subscription } } = client.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
         setSession(session);
@@ -33,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // INITIAL load (controls loading state)
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+         const { data: { session } } = await client.auth.getSession();
         if (!isMounted) return;
         
         setSession(session);
@@ -52,11 +58,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
+     const client = getClient();
+     const { error } = await client.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+         emailRedirectTo: Capacitor.isNativePlatform() ? undefined : window.location.origin,
         data: { display_name: displayName },
       },
     });
@@ -64,7 +71,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+     const client = getClient();
+     const { error } = await client.auth.signInWithPassword({
       email,
       password,
     });
@@ -72,7 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+     const client = getClient();
+     await client.auth.signOut();
   };
 
   return (
