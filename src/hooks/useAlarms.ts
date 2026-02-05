@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+ import { supabase as webSupabase } from '@/integrations/supabase/client';
+ import { nativeSupabase } from '@/lib/supabaseClient';
+ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
@@ -7,6 +9,9 @@ type Alarm = Tables<'alarms'>;
 type AlarmInsert = TablesInsert<'alarms'>;
 type AlarmUpdate = TablesUpdate<'alarms'>;
 
+ // Use native client on iOS/Android, web client on browser
+ const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : webSupabase;
+ 
 export const useAlarms = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -16,7 +21,7 @@ export const useAlarms = () => {
     queryKey: ['alarms', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('alarms')
         .select('*')
         .eq('user_id', user.id)
@@ -31,7 +36,7 @@ export const useAlarms = () => {
   const addAlarm = useMutation({
     mutationFn: async (alarm: Omit<AlarmInsert, 'user_id'>) => {
       if (!user) throw new Error('User not authenticated');
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('alarms')
         .insert({ ...alarm, user_id: user.id })
         .select()
@@ -47,7 +52,7 @@ export const useAlarms = () => {
   // Update an alarm
   const updateAlarm = useMutation({
     mutationFn: async ({ id, ...updates }: AlarmUpdate & { id: string }) => {
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('alarms')
         .update(updates)
         .eq('id', id)
@@ -64,7 +69,7 @@ export const useAlarms = () => {
   // Delete an alarm
   const deleteAlarm = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+       const { error } = await getClient()
         .from('alarms')
         .delete()
         .eq('id', id);
@@ -78,7 +83,7 @@ export const useAlarms = () => {
   // Toggle alarm enabled state
   const toggleAlarm = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('alarms')
         .update({ enabled })
         .eq('id', id)
