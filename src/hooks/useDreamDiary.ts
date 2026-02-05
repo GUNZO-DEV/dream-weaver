@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+ import { storageGet, storageSet } from '@/lib/capacitorStorage';
 
 export interface DreamEntry {
   id: string;
@@ -15,20 +16,31 @@ export interface DreamEntry {
 const STORAGE_KEY = 'dreamDiary';
 
 export const useDreamDiary = () => {
-  const [entries, setEntries] = useState<DreamEntry[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved).map((e: any) => ({
+   const [entries, setEntries] = useState<DreamEntry[]>([]);
+   const [isLoaded, setIsLoaded] = useState(false);
+ 
+   // Load entries from storage on mount
+   useEffect(() => {
+     const loadEntries = async () => {
+       const saved = await storageGet(STORAGE_KEY);
+       if (saved) {
+         const parsed = JSON.parse(saved).map((e: any) => ({
         ...e,
         date: new Date(e.date),
       }));
-    }
-    return [];
-  });
+         setEntries(parsed);
+       }
+       setIsLoaded(true);
+     };
+     loadEntries();
+   }, []);
 
+   // Save entries to storage when they change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries]);
+     if (isLoaded) {
+       storageSet(STORAGE_KEY, JSON.stringify(entries));
+     }
+   }, [entries, isLoaded]);
 
   const addEntry = useCallback((entry: Omit<DreamEntry, 'id'>) => {
     const newEntry: DreamEntry = {
@@ -74,6 +86,7 @@ export const useDreamDiary = () => {
 
   return {
     entries,
+     isLoaded,
     addEntry,
     updateEntry,
     deleteEntry,

@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+ import { supabase as webSupabase } from '@/integrations/supabase/client';
+ import { nativeSupabase } from '@/lib/supabaseClient';
+ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
@@ -9,6 +11,9 @@ type SleepRecordUpdate = TablesUpdate<'sleep_records'>;
 type SleepStage = Tables<'sleep_stages'>;
 type SleepStageInsert = TablesInsert<'sleep_stages'>;
 
+ // Use native client on iOS/Android, web client on browser
+ const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : webSupabase;
+ 
 export const useSleepRecords = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -18,7 +23,7 @@ export const useSleepRecords = () => {
     queryKey: ['sleep_records', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('sleep_records')
         .select('*, sleep_stages(*), noise_events(*)')
         .eq('user_id', user.id)
@@ -33,7 +38,7 @@ export const useSleepRecords = () => {
   const startTracking = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('User not authenticated');
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('sleep_records')
         .insert({
           user_id: user.id,
@@ -69,7 +74,7 @@ export const useSleepRecords = () => {
       const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
 
       // Update the sleep record
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('sleep_records')
         .update({
           end_time: endTime.toISOString(),
@@ -89,7 +94,7 @@ export const useSleepRecords = () => {
           ...s,
           sleep_record_id: recordId,
         }));
-        const { error: stagesError } = await supabase
+         const { error: stagesError } = await getClient()
           .from('sleep_stages')
           .insert(stagesWithRecordId);
         if (stagesError) throw stagesError;

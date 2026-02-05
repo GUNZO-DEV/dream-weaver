@@ -43,3 +43,18 @@
  * Check if we're running on a native platform (iOS/Android)
  */
  export const isNativePlatform = () => Capacitor.isNativePlatform();
+ 
+ /**
+  * Convenience functions for direct storage access (async)
+  */
+ export const storageGet = async (key: string): Promise<string | null> => {
+   return capacitorStorage.getItem(key);
+ };
+ 
+ export const storageSet = async (key: string, value: string): Promise<void> => {
+   return capacitorStorage.setItem(key, value);
+ };
+ 
+ export const storageRemove = async (key: string): Promise<void> => {
+   return capacitorStorage.removeItem(key);
+ };
