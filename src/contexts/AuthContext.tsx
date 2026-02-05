@@ -5,7 +5,11 @@ import { User, Session } from '@supabase/supabase-js';
  import { nativeSupabase } from '@/lib/supabaseClient';
  
  // Use native-compatible client on iOS/Android, standard client on web
- const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : supabase;
+ const getClient = () => {
+   const isNative = Capacitor.isNativePlatform();
+   console.log('[AuthContext] getClient - isNative:', isNative, 'platform:', Capacitor.getPlatform());
+   return isNative ? nativeSupabase : supabase;
+ };
 
 interface AuthContextType {
   user: User | null;
@@ -26,11 +30,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
      const client = getClient();
+    console.log('[AuthContext] Initializing auth...');
 
     // Listener for ONGOING auth changes (does NOT control loading)
      const { data: { subscription } } = client.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
+        console.log('[AuthContext] Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
       }
@@ -39,11 +45,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // INITIAL load (controls loading state)
     const initializeAuth = async () => {
       try {
+        console.log('[AuthContext] Getting initial session...');
          const { data: { session } } = await client.auth.getSession();
         if (!isMounted) return;
         
+        console.log('[AuthContext] Initial session:', session?.user?.id ?? 'none');
         setSession(session);
         setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('[AuthContext] Error getting session:', error);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -71,11 +81,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('[AuthContext] Signing in:', email);
      const client = getClient();
      const { error } = await client.auth.signInWithPassword({
       email,
       password,
     });
+    if (error) {
+      console.error('[AuthContext] Sign in error:', error);
+    } else {
+      console.log('[AuthContext] Sign in successful');
+    }
     return { error };
   };
 
