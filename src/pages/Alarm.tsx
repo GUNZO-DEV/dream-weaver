@@ -1,29 +1,21 @@
-import { motion } from "framer-motion";
+ import { motion, AnimatePresence } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { AlarmCard } from "@/components/AlarmCard";
 import { AlarmCaptcha } from "@/components/AlarmCaptcha";
 import { NoiseRecorder } from "@/components/NoiseRecorder";
 import { Button } from "@/components/ui/button";
-import { Plus, Bell, Clock, Calculator, Brain, Type, Smartphone, Shield } from "lucide-react";
+ import { Plus, Bell, Clock, Shield, Volume2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
   import { useState, useEffect, useCallback } from "react";
 import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
+  import { AlarmFormDialog, AlarmFormData } from "@/components/AlarmFormDialog";
  import { useAlarms } from "@/hooks/useAlarms";
  import { useNativeAlarm } from "@/hooks/useNativeAlarm";
  import { useAuth } from "@/contexts/AuthContext";
- import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
- import { Input } from "@/components/ui/input";
- import { Label } from "@/components/ui/label";
  import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
-
-const captchaOptions: { type: CaptchaType; label: string; icon: React.ReactNode; desc: string }[] = [
-  { type: 'math', label: 'Math', icon: <Calculator size={18} />, desc: 'Solve equations' },
-  { type: 'memory', label: 'Memory', icon: <Brain size={18} />, desc: 'Remember sequence' },
-  { type: 'typing', label: 'Typing', icon: <Type size={18} />, desc: 'Type a phrase' },
-  { type: 'shake', label: 'Shake', icon: <Smartphone size={18} />, desc: 'Shake to dismiss' },
-];
+ import { useRef, useMemo } from "react";
 
 const Alarm = () => {
    const { user } = useAuth();
@@ -39,11 +31,40 @@ const Alarm = () => {
   const [smartWake, setSmartWake] = useState(true);
   const [vibration, setVibration] = useState(true);
   const [showCaptcha, setShowCaptcha] = useState(false);
-   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-   const [newAlarmTime, setNewAlarmTime] = useState("07:00");
-   const [newAlarmLabel, setNewAlarmLabel] = useState("");
+   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+   const [editingAlarm, setEditingAlarm] = useState<string | null>(null);
+   const [activeAlarmCaptcha, setActiveAlarmCaptcha] = useState<{
+     captchaType: CaptchaType;
+     difficulty: number;
+   } | null>(null);
+   
+   // Audio ref for persistent alarm sound
+   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
   
   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
+ 
+   // Get the alarm being edited
+   const alarmToEdit = useMemo(() => {
+     if (!editingAlarm || !alarms) return undefined;
+     return alarms.find((a) => a.id === editingAlarm);
+   }, [editingAlarm, alarms]);
+ 
+   // Start persistent alarm sound
+   const startAlarmSound = () => {
+     if (!alarmAudioRef.current) {
+       alarmAudioRef.current = new Audio('/alarm-sound.mp3');
+       alarmAudioRef.current.loop = true;
+     }
+     alarmAudioRef.current.play().catch(console.error);
+   };
+ 
+   // Stop persistent alarm sound
+   const stopAlarmSound = () => {
+     if (alarmAudioRef.current) {
+       alarmAudioRef.current.pause();
+       alarmAudioRef.current.currentTime = 0;
+     }
+   };
 
    // Debug logging on mount
    useEffect(() => {
@@ -158,47 +179,88 @@ const Alarm = () => {
  
   const testAlarm = () => {
     startAlarm();
+     setActiveAlarmCaptcha({
+       captchaType: settings.captchaType,
+       difficulty: settings.captchaDifficulty,
+     });
+     startAlarmSound();
     setShowCaptcha(true);
   };
+ 
+   const handleDismissAlarm = () => {
+     stopAlarmSound();
+     setShowCaptcha(false);
+     setActiveAlarmCaptcha(null);
+   };
 
-   const handleAddAlarm = async () => {
+    const handleFormSubmit = async (data: AlarmFormData) => {
      if (!user) {
-       toast.error("Please log in to add alarms");
+        toast.error("Please log in to manage alarms");
        return;
      }
  
-     console.log('[Alarm] Adding alarm:', { time: newAlarmTime, label: newAlarmLabel });
+      console.log('[Alarm] Submitting alarm:', data);
 
      try {
-       const result = await addAlarm.mutateAsync({
-         time: newAlarmTime,
-         label: newAlarmLabel || null,
-         enabled: true,
-         days_of_week: [2, 3, 4, 5, 6], // Mon-Fri
-         wake_window_minutes: 30,
-         captcha_enabled: settings.captchaEnabled,
-         captcha_type: settings.captchaType,
-         captcha_difficulty: settings.captchaDifficulty,
-         vibration,
-         gradual_volume: true,
-       });
+        if (editingAlarm) {
+          // Update existing alarm
+          await updateAlarm.mutateAsync({
+            id: editingAlarm,
+            time: data.time,
+            label: data.label || null,
+            days_of_week: data.days_of_week,
+            wake_window_minutes: data.wake_window_minutes,
+            captcha_enabled: data.captcha_enabled,
+            captcha_type: data.captcha_type,
+            captcha_difficulty: data.captcha_difficulty,
+            vibration: data.vibration,
+            gradual_volume: data.gradual_volume,
+            sound_id: data.sound_id,
+          });
+          toast.success("Alarm updated!");
+        } else {
+          // Create new alarm
+          const result = await addAlarm.mutateAsync({
+            time: data.time,
+            label: data.label || null,
+            enabled: true,
+            days_of_week: data.days_of_week,
+            wake_window_minutes: data.wake_window_minutes,
+            captcha_enabled: data.captcha_enabled,
+            captcha_type: data.captcha_type,
+            captcha_difficulty: data.captcha_difficulty,
+            vibration: data.vibration,
+            gradual_volume: data.gradual_volume,
+            sound_id: data.sound_id,
+          });
  
-       console.log('[Alarm] Alarm added successfully:', result?.id);
+          console.log('[Alarm] Alarm added successfully:', result?.id);
 
-        // Schedule native notification if on device (will be handled by useEffect sync)
-        if (isNative && result) {
-          console.log('[Alarm] Scheduling native notification for:', result.id);
-          await scheduleNativeNotification(result);
-       }
+          // Schedule native notification if on device
+          if (isNative && result) {
+            console.log('[Alarm] Scheduling native notification for:', result.id);
+            await scheduleNativeNotification(result);
+          }
  
-       toast.success("Alarm added!");
-       setIsAddDialogOpen(false);
-       setNewAlarmTime("07:00");
-       setNewAlarmLabel("");
+          toast.success("Alarm added!");
+        }
+        
+        setIsFormDialogOpen(false);
+        setEditingAlarm(null);
      } catch (error) {
-       console.error('[Alarm] Failed to add alarm:', error);
-       toast.error("Failed to add alarm");
+        console.error('[Alarm] Failed to save alarm:', error);
+        toast.error("Failed to save alarm");
      }
+   };
+ 
+   const handleEditAlarm = (id: string) => {
+     setEditingAlarm(id);
+     setIsFormDialogOpen(true);
+   };
+ 
+   const handleAddNewAlarm = () => {
+     setEditingAlarm(null);
+     setIsFormDialogOpen(true);
    };
  
    const handleToggleAlarm = async (id: string, enabled: boolean) => {
@@ -250,11 +312,39 @@ const Alarm = () => {
 
       {showCaptcha && (
         <AlarmCaptcha 
-          onDismiss={() => setShowCaptcha(false)} 
-          captchaType={settings.captchaType}
-          difficulty={settings.captchaDifficulty}
+          onDismiss={handleDismissAlarm} 
+          captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
+          difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
         />
       )}
+ 
+       {/* Alarm Form Dialog */}
+       <AlarmFormDialog
+         open={isFormDialogOpen}
+         onOpenChange={(open) => {
+           setIsFormDialogOpen(open);
+           if (!open) setEditingAlarm(null);
+         }}
+         onSubmit={handleFormSubmit}
+         isEditing={!!editingAlarm}
+         isPending={addAlarm.isPending || updateAlarm.isPending}
+         initialData={
+           alarmToEdit
+             ? {
+                 time: alarmToEdit.time,
+                 label: alarmToEdit.label || "",
+                 days_of_week: alarmToEdit.days_of_week || [1, 2, 3, 4, 5],
+                 sound_id: alarmToEdit.sound_id || "sunrise",
+                 gradual_volume: alarmToEdit.gradual_volume ?? true,
+                 vibration: alarmToEdit.vibration ?? true,
+                 wake_window_minutes: alarmToEdit.wake_window_minutes || 30,
+                 captcha_enabled: alarmToEdit.captcha_enabled ?? true,
+                 captcha_type: (alarmToEdit.captcha_type as CaptchaType) || "math",
+                 captcha_difficulty: alarmToEdit.captcha_difficulty || 2,
+               }
+             : undefined
+         }
+       />
 
       <motion.header
         className="px-6 pt-12 pb-6 relative z-10"
@@ -285,8 +375,10 @@ const Alarm = () => {
                  label={alarm.label || "Alarm"}
                  wakeWindow={alarm.wake_window_minutes || 30}
                  enabled={alarm.enabled ?? true}
+                  daysOfWeek={alarm.days_of_week || []}
                  onToggle={(enabled) => handleToggleAlarm(alarm.id, enabled)}
                  onDelete={() => handleDeleteAlarm(alarm.id)}
+                  onEdit={() => handleEditAlarm(alarm.id)}
                />
              ))
            ) : (
@@ -300,130 +392,33 @@ const Alarm = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-             <DialogTrigger asChild>
-               <Button 
-                 variant="outline" 
-                 className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
-                 disabled={!user}
-               >
-                 <Plus className="mr-2" size={20} />
-                 Add New Alarm
-               </Button>
-             </DialogTrigger>
-             <DialogContent className="bg-background border-border">
-               <DialogHeader>
-                 <DialogTitle>Add New Alarm</DialogTitle>
-               </DialogHeader>
-               <div className="space-y-4 pt-4">
-                 <div className="space-y-2">
-                   <Label htmlFor="time">Time</Label>
-                   <Input
-                     id="time"
-                     type="time"
-                     value={newAlarmTime}
-                     onChange={(e) => setNewAlarmTime(e.target.value)}
-                     className="text-lg"
-                   />
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="label">Label (optional)</Label>
-                   <Input
-                     id="label"
-                     placeholder="e.g., Work, Gym, School"
-                     value={newAlarmLabel}
-                     onChange={(e) => setNewAlarmLabel(e.target.value)}
-                   />
-                 </div>
-                 <Button onClick={handleAddAlarm} className="w-full" disabled={addAlarm.isPending}>
-                   {addAlarm.isPending ? "Adding..." : "Add Alarm"}
-                 </Button>
-               </div>
-             </DialogContent>
-           </Dialog>
+            <Button 
+              variant="outline" 
+              className="w-full h-14 border-dashed border-2 rounded-2xl text-muted-foreground hover:text-foreground hover:border-primary"
+              disabled={!user}
+              onClick={handleAddNewAlarm}
+            >
+              <Plus className="mr-2" size={20} />
+              Add New Alarm
+            </Button>
         </motion.div>
 
-        {/* CAPTCHA Settings */}
-        <motion.section
-          className="glass-card rounded-3xl p-6"
+        {/* Test CAPTCHA Button */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                <Shield size={18} className="text-accent" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">CAPTCHA</h3>
-                <p className="text-xs text-muted-foreground">Tasks to dismiss alarm</p>
-              </div>
-            </div>
-            <Switch 
-              checked={settings.captchaEnabled} 
-              onCheckedChange={(checked) => saveSettings({ captchaEnabled: checked })} 
-            />
-          </div>
-
-          {settings.captchaEnabled && (
-            <div className="space-y-4 mt-4">
-              {/* CAPTCHA Type Selection */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-3">Challenge Type</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {captchaOptions.map(option => (
-                    <button
-                      key={option.type}
-                      onClick={() => saveSettings({ captchaType: option.type })}
-                      className={`p-3 rounded-xl flex items-center gap-3 transition-all ${
-                        settings.captchaType === option.type
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-                      }`}
-                    >
-                      {option.icon}
-                      <div className="text-left">
-                        <p className="text-sm font-medium">{option.label}</p>
-                        <p className="text-xs opacity-70">{option.desc}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Difficulty */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-3">Difficulty</p>
-                <div className="flex gap-2">
-                  {[1, 2, 3].map(level => (
-                    <button
-                      key={level}
-                      onClick={() => saveSettings({ captchaDifficulty: level })}
-                      className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                        settings.captchaDifficulty === level
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-                      }`}
-                    >
-                      {level === 1 ? 'Easy' : level === 2 ? 'Medium' : 'Hard'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Test Button */}
-              <Button 
-                onClick={testAlarm}
-                variant="outline" 
-                className="w-full h-12 rounded-xl"
-              >
-                Test CAPTCHA
-              </Button>
-            </div>
-          )}
-        </motion.section>
-
+          <Button 
+            onClick={testAlarm}
+            variant="outline" 
+            className="w-full h-12 rounded-xl"
+          >
+            <Shield className="mr-2" size={18} />
+            Test CAPTCHA
+          </Button>
+        </motion.div>
+ 
         {/* Smart Wake Settings */}
         <motion.section
           className="glass-card rounded-3xl p-6"

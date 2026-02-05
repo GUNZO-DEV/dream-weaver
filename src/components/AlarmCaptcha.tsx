@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Calculator, Smartphone, Brain, Type, X } from "lucide-react";
+ import { Bell, Calculator, Smartphone, Brain, Type, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CaptchaType, CaptchaChallenge } from "@/hooks/useAlarmCaptcha";
@@ -9,6 +9,7 @@ interface AlarmCaptchaProps {
   onDismiss: () => void;
   captchaType?: CaptchaType;
   difficulty?: number;
+   persistentSound?: boolean;
 }
 
 const captchaIcons: Record<CaptchaType, React.ReactNode> = {
@@ -109,7 +110,8 @@ const generateChallenge = (type: CaptchaType, difficulty: number): CaptchaChalle
 export const AlarmCaptcha = ({ 
   onDismiss, 
   captchaType = 'math',
-  difficulty = 2 
+   difficulty = 2,
+   persistentSound = true
 }: AlarmCaptchaProps) => {
   const [currentChallenge, setCurrentChallenge] = useState<CaptchaChallenge>(() => 
     generateChallenge(captchaType, difficulty)
@@ -119,6 +121,10 @@ export const AlarmCaptcha = ({
   const [memoryPhase, setMemoryPhase] = useState<'show' | 'input'>('show');
   const [shakeCount, setShakeCount] = useState(0);
   const [attempts, setAttempts] = useState(0);
+   const [isRinging, setIsRinging] = useState(true);
+ 
+   // Prevent dismissing by clicking outside - alarm is persistent!
+   // User MUST complete the CAPTCHA
 
   // Handle memory challenge phases
   useEffect(() => {
@@ -158,24 +164,53 @@ export const AlarmCaptcha = ({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background backdrop-blur-md"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      // Prevent closing by tapping background
+      onClick={(e) => e.stopPropagation()}
     >
+       {/* Pulsing background effect to indicate urgency */}
+       <motion.div
+         className="absolute inset-0 bg-destructive/10"
+         animate={{ opacity: [0.1, 0.2, 0.1] }}
+         transition={{ duration: 2, repeat: Infinity }}
+       />
+ 
       <motion.div
-        className="glass-card rounded-3xl p-8 max-w-md w-full mx-4"
+        className="glass-card rounded-3xl p-8 max-w-md w-full mx-4 relative z-10"
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
       >
         {/* Alarm Icon */}
         <motion.div
-          className="w-20 h-20 rounded-full gradient-accent mx-auto mb-6 flex items-center justify-center"
-          animate={{ scale: [1, 1.1, 1] }}
+          className="w-24 h-24 rounded-full bg-destructive/20 mx-auto mb-6 flex items-center justify-center"
+          animate={{ 
+            scale: [1, 1.15, 1],
+            rotate: [0, -5, 5, -5, 0]
+          }}
           transition={{ duration: 1, repeat: Infinity }}
         >
-          <Bell size={36} className="text-accent-foreground" />
+          <motion.div
+            animate={{ rotate: [-10, 10, -10] }}
+            transition={{ duration: 0.15, repeat: Infinity }}
+          >
+            <Bell size={40} className="text-destructive" />
+          </motion.div>
         </motion.div>
+ 
+        {/* Ringing indicator */}
+        {isRinging && (
+          <motion.div 
+            className="flex items-center justify-center gap-2 mb-4"
+            animate={{ opacity: [1, 0.5, 1] }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+          >
+            <Volume2 size={18} className="text-destructive" />
+            <span className="text-sm text-destructive font-medium">Alarm Ringing</span>
+          </motion.div>
+        )}
 
         <h2 className="text-2xl font-bold text-foreground text-center mb-2">
           Wake Up!
