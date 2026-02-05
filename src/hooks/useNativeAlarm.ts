@@ -30,13 +30,13 @@ export const useNativeAlarm = () => {
               {
                 id: 'snooze',
                 title: 'Snooze (5 min)',
-                foreground: false,
+                foreground: true, // Bring app to foreground to handle snooze
               },
               {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
-                foreground: false,
+                foreground: true, // Bring app to foreground to stop alarm
               },
             ],
           },
@@ -69,13 +69,16 @@ export const useNativeAlarm = () => {
           title: alarm.title,
           body: alarm.body,
           schedule: { at: alarm.scheduledAt },
-          sound: alarm.sound || 'beep.wav',
+          sound: undefined, // Use default system sound - we'll play our own via Web Audio
           actionTypeId: 'ALARM_ACTIONS',
           extra: { alarmId: alarm.id },
           // iOS specific options
           attachments: undefined,
           threadIdentifier: 'alarms',
           summaryArgument: alarm.title,
+          // Make it an alarm-style notification
+          ongoing: true,
+          autoCancel: false,
         },
       ],
     };
@@ -155,12 +158,15 @@ export const useNativeAlarm = () => {
         repeats: true,
         allowWhileIdle: true,
       },
-      sound: 'beep.wav',
+      sound: undefined, // Use default - we play via Web Audio when notification fires
       actionTypeId: 'ALARM_ACTIONS',
       extra: { alarmId: id, dayOfWeek: day },
       // iOS specific
       threadIdentifier: 'alarms',
       summaryArgument: title,
+      // Android: make it sticky/ongoing
+      ongoing: true,
+      autoCancel: false,
     }));
 
     try {
@@ -186,13 +192,13 @@ export const useNativeAlarm = () => {
               {
                 id: 'snooze',
                 title: 'Snooze',
-                foreground: false,
+                foreground: true,
               },
               {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
-                foreground: false,
+                foreground: true,
               },
             ],
           },

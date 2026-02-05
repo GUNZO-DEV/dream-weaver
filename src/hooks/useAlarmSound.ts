@@ -94,11 +94,15 @@
      return audioContextRef.current;
    }, []);
  
-   const resumeContext = useCallback(async () => {
+  const resumeContext = useCallback(async (): Promise<AudioContext> => {
      const ctx = getAudioContext();
      if (ctx.state === 'suspended') {
        console.log('[AlarmSound] Resuming suspended AudioContext...');
-       await ctx.resume();
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.error('[AlarmSound] Failed to resume context:', e);
+      }
        console.log('[AlarmSound] AudioContext resumed, state:', ctx.state);
      }
      return ctx;
@@ -153,7 +157,7 @@
      soundType: AlarmSoundType = 'sunrise',
      gradualVolume: boolean = true,
      vibration: boolean = true
-   ) => {
+    ): Promise<boolean> => {
      try {
        console.log('[AlarmSound] Playing alarm:', soundType, { gradualVolume, vibration });
        
@@ -161,6 +165,14 @@
        stopAlarm();
        
        const ctx = await resumeContext();
+        
+        // Double-check context is running
+        if (ctx.state !== 'running') {
+          console.warn('[AlarmSound] AudioContext not running after resume, state:', ctx.state);
+          // Try to resume again with user gesture simulation
+          await ctx.resume();
+        }
+        
        const config = ALARM_SOUNDS[soundType] || ALARM_SOUNDS.sunrise;
        
        isPlayingRef.current = true;
@@ -173,7 +185,8 @@
  
        // Create gain node for volume control
        const gainNode = ctx.createGain();
-       gainNode.gain.value = gradualVolume ? 0.05 : 0.3;
+        // Start louder to ensure it's audible
+        gainNode.gain.value = gradualVolume ? 0.1 : 0.5;
        gainNodeRef.current = gainNode;
  
        // Add modulation if configured
@@ -197,6 +210,19 @@
        oscillator.start();
  
        console.log('[AlarmSound] Oscillator started');
+        
+        // On native, also try to vibrate
+        if (vibration && Capacitor.isNativePlatform()) {
+          // Start a vibration pattern that repeats
+          const vibratePattern = () => {
+            if (!isPlayingRef.current) return;
+            if (navigator.vibrate) {
+              navigator.vibrate([500, 200, 500, 200, 500, 500]);
+            }
+            setTimeout(vibratePattern, 2500);
+          };
+          vibratePattern();
+        }
  
        // Implement pattern (on/off beeping)
        let patternIndex = 0;
@@ -226,10 +252,10 @@
  
        // Gradual volume increase
        if (gradualVolume) {
-         let currentVolume = 0.05;
-         const targetVolume = 0.4;
+          let currentVolume = 0.1;
+          const targetVolume = 0.6;
          const steps = 30;
-         const interval = 2000; // Increase every 2 seconds
+          const interval = 1000; // Increase every 1 second for faster ramp
          const volumeStep = (targetVolume - currentVolume) / steps;
  
          gradualVolumeIntervalRef.current = setInterval(() => {
