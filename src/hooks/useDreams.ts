@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+ import { supabase as webSupabase } from '@/integrations/supabase/client';
+ import { nativeSupabase } from '@/lib/supabaseClient';
+ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
@@ -7,6 +9,9 @@ type Dream = Tables<'dreams'>;
 type DreamInsert = TablesInsert<'dreams'>;
 type DreamUpdate = TablesUpdate<'dreams'>;
 
+ // Use native client on iOS/Android, web client on browser
+ const getClient = () => Capacitor.isNativePlatform() ? nativeSupabase : webSupabase;
+ 
 export const useDreams = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -16,7 +21,7 @@ export const useDreams = () => {
     queryKey: ['dreams', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('dreams')
         .select('*')
         .eq('user_id', user.id)
@@ -31,7 +36,7 @@ export const useDreams = () => {
   const addDream = useMutation({
     mutationFn: async (dream: Omit<DreamInsert, 'user_id'>) => {
       if (!user) throw new Error('User not authenticated');
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('dreams')
         .insert({ ...dream, user_id: user.id })
         .select()
@@ -47,7 +52,7 @@ export const useDreams = () => {
   // Update a dream
   const updateDream = useMutation({
     mutationFn: async ({ id, ...updates }: DreamUpdate & { id: string }) => {
-      const { data, error } = await supabase
+       const { data, error } = await getClient()
         .from('dreams')
         .update(updates)
         .eq('id', id)
@@ -64,7 +69,7 @@ export const useDreams = () => {
   // Delete a dream
   const deleteDream = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+       const { error } = await getClient()
         .from('dreams')
         .delete()
         .eq('id', id);
