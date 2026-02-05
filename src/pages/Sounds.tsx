@@ -30,12 +30,20 @@ const Sounds = () => {
      timerMinutes,
      setTimerMinutes,
      startTimer,
+     playPreset,
    } = useSoundPlayer();
  
    const handleStartTimer = () => {
      startTimer();
      toast.success(`Timer set for ${timerMinutes} minutes`);
    };
+ 
+   const presets = [
+     { name: "Rainy Night", description: "Rain + Wind", sounds: ["Rain", "Wind"] },
+     { name: "Beach Vibes", description: "Ocean + Wind", sounds: ["Ocean", "Wind"] },
+     { name: "Forest Walk", description: "Forest + Birds", sounds: ["Forest", "Birds"] },
+     { name: "Cozy Evening", description: "Fireplace + Rain", sounds: ["Fireplace", "Rain"] },
+   ];
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -156,17 +164,13 @@ const Sounds = () => {
         >
           <h3 className="text-lg font-semibold text-foreground mb-4">Quick Presets</h3>
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { name: "Rainy Night", description: "Rain + Thunder" },
-              { name: "Beach Vibes", description: "Ocean + Wind" },
-              { name: "Forest Walk", description: "Forest + Birds" },
-              { name: "Cozy Evening", description: "Fireplace + Rain" },
-            ].map((preset, index) => (
+             {presets.map((preset) => (
               <motion.button
                 key={preset.name}
                 className="glass-card p-4 rounded-xl text-left hover:ring-1 hover:ring-primary transition-all"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                 onClick={() => playPreset(preset.sounds)}
               >
                 <p className="font-medium text-foreground">{preset.name}</p>
                 <p className="text-xs text-muted-foreground mt-1">{preset.description}</p>

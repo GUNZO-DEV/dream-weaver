@@ -274,6 +274,25 @@
      return Object.values(activeSounds).filter(s => s.isPlaying).length;
    }, [activeSounds]);
  
+   // Play a preset (multiple sounds at once)
+   const playPreset = useCallback((soundNames: string[]) => {
+     // Stop all current sounds first
+     soundGenerator.current?.stopAll();
+     
+     const newActiveSounds: Record<string, SoundState> = {};
+     
+     soundNames.forEach(name => {
+       const key = name.toLowerCase();
+       const success = soundGenerator.current?.createSound(key, masterVolume);
+       if (success) {
+         newActiveSounds[key] = { isPlaying: true, volume: masterVolume };
+       }
+     });
+     
+     setActiveSounds(newActiveSounds);
+     toast.success(`Playing ${soundNames.join(' + ')}`);
+   }, [masterVolume]);
+ 
    return {
      toggleSound,
      stopAllSounds,
@@ -284,5 +303,6 @@
      timerMinutes,
      setTimerMinutes,
      startTimer,
+     playPreset,
    };
  };
