@@ -85,16 +85,17 @@ export const useNativeAlarm = () => {
           title: alarm.title,
           body: alarm.body,
           schedule: { at: alarm.scheduledAt },
-          sound: 'alarm_sound.wav', // Native sound file
+          sound: 'alarm_sound.wav',
           actionTypeId: 'ALARM_ACTIONS',
           extra: { alarmId: alarm.id },
-          channelId: 'alarm_channel', // Android high-priority channel
+          channelId: 'alarm_channel',
           attachments: undefined,
           threadIdentifier: 'alarms',
           summaryArgument: alarm.title,
           ongoing: true,
           autoCancel: false,
-        },
+          interruptionLevel: 'critical',
+        } as any,
       ],
     };
 
@@ -181,8 +182,8 @@ export const useNativeAlarm = () => {
       summaryArgument: title,
       ongoing: true,
       autoCancel: false,
-      // iOS: Make notification persist longer
-      interruptionLevel: 'timeSensitive' as any,
+      // iOS Critical Alert - bypasses Do Not Disturb and Silent Mode
+      interruptionLevel: 'critical' as any,
     }));
 
     try {
