@@ -21,14 +21,21 @@
  2. Create the `raw` folder if it doesn't exist
  3. Build and run
  
- ## iOS Notification Persistence
- 
- iOS notifications are transient by default. To make alarm notifications persist:
- 
- 1. **Time Sensitive Notifications**: Already configured in the code
- 2. **Critical Alerts**: Requires Apple approval. Add to your app's entitlements if needed:
-    - Open Xcode > App target > Signing & Capabilities
-    - Add "Critical Alerts" capability (requires Apple Developer account approval)
+## iOS Critical Alerts Setup (REQUIRED)
+
+Critical Alerts bypass **Do Not Disturb**, **Silent Mode**, and **Focus modes**. The code is already configured to use `interruptionLevel: 'critical'`. You must enable the capability in Xcode:
+
+1. Open your iOS project: `npx cap open ios`
+2. Select the **App** target → **Signing & Capabilities** tab
+3. Click **+ Capability** → search for **"Critical Alerts"**
+4. Add it (requires an Apple Developer account with Critical Alerts entitlement approved)
+5. To request this entitlement from Apple, go to https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/
+6. In your `App.entitlements` file, ensure this key exists:
+   ```xml
+   <key>com.apple.developer.usernotifications.critical-alerts</key>
+   <true/>
+   ```
+7. The app will prompt users with a separate permission dialog for Critical Alerts at runtime
  
  ## Testing
  
