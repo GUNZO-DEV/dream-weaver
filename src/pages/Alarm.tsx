@@ -20,14 +20,15 @@
  const Alarm = () => {
    const { user } = useAuth();
    const { alarms, isLoading, error: alarmsError, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
-   const { 
-     scheduleRepeatingAlarm, 
-     cancelAlarm: cancelNativeAlarm, 
-     isNative, 
-     registerAlarmActions,
-     addNotificationListeners,
-     requestPermissions 
-   } = useNativeAlarm();
+    const { 
+      scheduleAlarm,
+      scheduleRepeatingAlarm, 
+      cancelAlarm: cancelNativeAlarm, 
+      isNative, 
+      registerAlarmActions,
+      addNotificationListeners,
+      requestPermissions 
+    } = useNativeAlarm();
    const { playAlarm, stopAlarm: stopAlarmSound } = useAlarmSound();
    
    const [smartWake, setSmartWake] = useState(true);
@@ -211,18 +212,29 @@
          },
          (action) => {
            console.log('Notification action:', action);
-           if (action.actionId === 'snooze') {
-              // Stop current alarm sound
-              stopAlarmSound();
-             // Stop vibration
-             if ((window as any).__alarmVibInterval) {
-               clearInterval((window as any).__alarmVibInterval);
-             }
-             if (navigator.vibrate) navigator.vibrate(0);
-              setShowCaptcha(false);
-              setActiveAlarmCaptcha(null);
-             toast.info('Alarm snoozed for 5 minutes');
-             // TODO: Reschedule for 5 minutes later
+            if (action.actionId === 'snooze') {
+               // Stop current alarm sound
+               stopAlarmSound();
+              // Stop vibration
+              if ((window as any).__alarmVibInterval) {
+                clearInterval((window as any).__alarmVibInterval);
+              }
+              if (navigator.vibrate) navigator.vibrate(0);
+               setShowCaptcha(false);
+               setActiveAlarmCaptcha(null);
+              
+              // Reschedule for 5 minutes later
+              const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
+              const snoozeId = Math.floor(Math.random() * 90000) + 10000;
+              scheduleAlarm({
+                id: snoozeId,
+                title: '⏰ Snoozed Alarm',
+                body: 'Time to wake up! (snoozed)',
+                scheduledAt: snoozeTime,
+                sound: 'alarm_sound.wav',
+              });
+              console.log('[Alarm] Snoozed - rescheduled for', snoozeTime.toLocaleTimeString());
+              toast.info('Alarm snoozed for 5 minutes');
            } else if (action.actionId === 'dismiss') {
               // Stop alarm completely
               stopAlarmSound();
@@ -240,7 +252,7 @@
        
        return cleanup;
      }
-   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound, audioUnlocked]);
+   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound, audioUnlocked, scheduleAlarm]);
  
    // Sync alarms with native notifications when alarms change
    useEffect(() => {
