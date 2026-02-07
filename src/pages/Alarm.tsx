@@ -2,7 +2,7 @@
  import { BottomNav } from "@/components/BottomNav";
  import { StarField } from "@/components/StarField";
  import { AlarmCard } from "@/components/AlarmCard";
- import { AlarmCaptcha } from "@/components/AlarmCaptcha";
+ import { FullScreenAlarm } from "@/components/FullScreenAlarm";
  import { NoiseRecorder } from "@/components/NoiseRecorder";
  import { Button } from "@/components/ui/button";
  import { Plus, Bell, Clock, Shield, Volume2 } from "lucide-react";
@@ -286,16 +286,38 @@
      setShowCaptcha(true);
    };
  
-   const handleDismissAlarm = () => {
-     stopAlarmSound();
-    // Stop vibration interval
-    if ((window as any).__alarmVibInterval) {
-      clearInterval((window as any).__alarmVibInterval);
-    }
-    if (navigator.vibrate) navigator.vibrate(0);
-     setShowCaptcha(false);
-     setActiveAlarmCaptcha(null);
-   };
+    const handleDismissAlarm = () => {
+      stopAlarmSound();
+      if ((window as any).__alarmVibInterval) {
+        clearInterval((window as any).__alarmVibInterval);
+      }
+      if (navigator.vibrate) navigator.vibrate(0);
+      setShowCaptcha(false);
+      setActiveAlarmCaptcha(null);
+    };
+
+    const handleSnoozeAlarm = useCallback(() => {
+      stopAlarmSound();
+      if ((window as any).__alarmVibInterval) {
+        clearInterval((window as any).__alarmVibInterval);
+      }
+      if (navigator.vibrate) navigator.vibrate(0);
+      setShowCaptcha(false);
+      setActiveAlarmCaptcha(null);
+
+      // Schedule snooze notification for 5 minutes later
+      const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
+      const snoozeId = Math.floor(Math.random() * 90000) + 10000;
+      scheduleAlarm({
+        id: snoozeId,
+        title: '⏰ Snoozed Alarm',
+        body: 'Time to wake up! (snoozed)',
+        scheduledAt: snoozeTime,
+        sound: 'alarm_sound.wav',
+      });
+      console.log('[Alarm] Snoozed - rescheduled for', snoozeTime.toLocaleTimeString());
+      toast.info('Alarm snoozed for 5 minutes');
+    }, [stopAlarmSound, scheduleAlarm]);
  
    const handleFormSubmit = async (data: AlarmFormData) => {
      if (!user) {
@@ -414,13 +436,16 @@
      <div className="min-h-screen pb-24 relative">
        <StarField />
  
-       {showCaptcha && (
-         <AlarmCaptcha 
-           onDismiss={handleDismissAlarm} 
-           captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
-           difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
-         />
-       )}
+        {showCaptcha && (
+          <FullScreenAlarm
+            onDismiss={handleDismissAlarm}
+            onSnooze={handleSnoozeAlarm}
+            alarmLabel={activeAlarmCaptcha?.soundId || "Alarm"}
+            captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
+            difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
+            captchaEnabled={true}
+          />
+        )}
  
        {/* Alarm Form Dialog */}
        <AlarmFormDialog
