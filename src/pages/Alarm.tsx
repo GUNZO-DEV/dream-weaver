@@ -1,323 +1,74 @@
- import { motion, AnimatePresence } from "framer-motion";
- import { BottomNav } from "@/components/BottomNav";
- import { StarField } from "@/components/StarField";
- import { AlarmCard } from "@/components/AlarmCard";
- import { FullScreenAlarm } from "@/components/FullScreenAlarm";
- import { NoiseRecorder } from "@/components/NoiseRecorder";
- import { Button } from "@/components/ui/button";
- import { Plus, Bell, Clock, Shield, Volume2 } from "lucide-react";
- import { Switch } from "@/components/ui/switch";
- import { useState, useEffect, useCallback, useMemo } from "react";
- import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
- import { AlarmFormDialog, AlarmFormData } from "@/components/AlarmFormDialog";
- import { useAlarms } from "@/hooks/useAlarms";
- import { useNativeAlarm } from "@/hooks/useNativeAlarm";
- import { useAlarmSound, AlarmSoundType } from "@/hooks/useAlarmSound";
- import { useAuth } from "@/contexts/AuthContext";
- import { toast } from "sonner";
- import { Capacitor } from "@capacitor/core";
- 
- const Alarm = () => {
-   const { user } = useAuth();
-   const { alarms, isLoading, error: alarmsError, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
-    const { 
-      scheduleAlarm,
-      scheduleRepeatingAlarm, 
-      cancelAlarm: cancelNativeAlarm, 
-      isNative, 
-      registerAlarmActions,
-      addNotificationListeners,
-      requestPermissions 
-    } = useNativeAlarm();
-   const { playAlarm, stopAlarm: stopAlarmSound } = useAlarmSound();
-   
-   const [smartWake, setSmartWake] = useState(true);
-   const [vibration, setVibration] = useState(true);
-   const [showCaptcha, setShowCaptcha] = useState(false);
-   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-   const [editingAlarm, setEditingAlarm] = useState<string | null>(null);
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-   const [activeAlarmCaptcha, setActiveAlarmCaptcha] = useState<{
-     captchaType: CaptchaType;
-     difficulty: number;
-     soundId?: AlarmSoundType;
-     gradualVolume?: boolean;
-     vibrationEnabled?: boolean;
-   } | null>(null);
-   
-   const { settings, saveSettings, startAlarm } = useAlarmCaptcha();
- 
-   // Get the alarm being edited
-   const alarmToEdit = useMemo(() => {
-     if (!editingAlarm || !alarms) return undefined;
-     return alarms.find((a) => a.id === editingAlarm);
-   }, [editingAlarm, alarms]);
- 
-   // Debug logging on mount
-   useEffect(() => {
-     console.log('[Alarm] Component mounted');
-     console.log('[Alarm] Platform:', Capacitor.getPlatform());
-     console.log('[Alarm] isNative:', isNative);
-     console.log('[Alarm] User:', user?.id);
-   }, [isNative, user]);
- 
-   // Log alarms state changes
-   useEffect(() => {
-     console.log('[Alarm] Alarms updated:', alarms?.length ?? 0, 'items');
-     if (alarmsError) {
-       console.error('[Alarm] Error loading alarms:', alarmsError);
-     }
-   }, [alarms, alarmsError]);
- 
-  // Unlock audio on first user interaction (iOS requirement)
+import { motion } from "framer-motion";
+import { BottomNav } from "@/components/BottomNav";
+import { StarField } from "@/components/StarField";
+import { AlarmCard } from "@/components/AlarmCard";
+import { NoiseRecorder } from "@/components/NoiseRecorder";
+import { Button } from "@/components/ui/button";
+import { Plus, Bell, Clock, Shield } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { type CaptchaType } from "@/hooks/useAlarmCaptcha";
+import { AlarmFormDialog, AlarmFormData } from "@/components/AlarmFormDialog";
+import { useAlarms } from "@/hooks/useAlarms";
+import { useNativeAlarm } from "@/hooks/useNativeAlarm";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAlarmContext } from "@/contexts/AlarmContext";
+import { toast } from "sonner";
+
+
+const Alarm = () => {
+  const { user } = useAuth();
+  const { alarms, isLoading, error: alarmsError, addAlarm, updateAlarm, deleteAlarm, toggleAlarm } = useAlarms();
+  const { scheduleRepeatingAlarm, cancelAlarm: cancelNativeAlarm, isNative } = useNativeAlarm();
+  const { testAlarm } = useAlarmContext();
+
+  const [smartWake, setSmartWake] = useState(true);
+  const [vibration, setVibration] = useState(true);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingAlarm, setEditingAlarm] = useState<string | null>(null);
+
+  const alarmToEdit = useMemo(() => {
+    if (!editingAlarm || !alarms) return undefined;
+    return alarms.find((a) => a.id === editingAlarm);
+  }, [editingAlarm, alarms]);
+
   useEffect(() => {
-    const unlockAudio = () => {
-      if (!audioUnlocked) {
-        console.log('[Alarm] Unlocking audio on user interaction');
-        // Create and play a silent audio to unlock iOS audio
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass();
-          const buffer = ctx.createBuffer(1, 1, 22050);
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          source.start(0);
-          ctx.resume().then(() => {
-            console.log('[Alarm] Audio context unlocked');
-            setAudioUnlocked(true);
-          });
-        }
-      }
-    };
+    console.log('[Alarm] Component mounted, isNative:', isNative);
+  }, [isNative]);
 
-    document.addEventListener('touchstart', unlockAudio, { once: true });
-    document.addEventListener('click', unlockAudio, { once: true });
+  const getNotificationId = useCallback((uuid: string): number => {
+    return parseInt(uuid.substring(0, 8), 16) % 100000;
+  }, []);
 
-    return () => {
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('click', unlockAudio);
-    };
-  }, [audioUnlocked]);
+  const scheduleNativeNotification = useCallback(async (alarm: {
+    id: string; time: string; label: string | null; days_of_week: number[] | null; enabled: boolean | null;
+  }) => {
+    if (!isNative || !alarm.enabled) return;
+    const [hours, minutes] = alarm.time.split(':').map(Number);
+    const notificationId = getNotificationId(alarm.id);
+    const days = alarm.days_of_week || [2, 3, 4, 5, 6];
+    await scheduleRepeatingAlarm(notificationId, "⏰ Wake Up!", alarm.label || "Time to wake up", hours, minutes, days);
+  }, [isNative, scheduleRepeatingAlarm, getNotificationId]);
 
-   // Generate a numeric ID from UUID for notifications
-   const getNotificationId = useCallback((uuid: string): number => {
-     return parseInt(uuid.substring(0, 8), 16) % 100000;
-   }, []);
- 
-   // Schedule native notification for an alarm
-   const scheduleNativeNotification = useCallback(async (alarm: {
-     id: string;
-     time: string;
-     label: string | null;
-     days_of_week: number[] | null;
-     enabled: boolean | null;
-   }) => {
-     try {
-       if (!isNative || !alarm.enabled) return;
-       
-       const [hours, minutes] = alarm.time.split(':').map(Number);
-       const notificationId = getNotificationId(alarm.id);
-       const days = alarm.days_of_week || [2, 3, 4, 5, 6]; // Default Mon-Fri
-       
-       await scheduleRepeatingAlarm(
-         notificationId,
-         "⏰ Wake Up!",
-         alarm.label || "Time to wake up",
-         hours,
-         minutes,
-         days
-       );
-       
-       console.log(`Scheduled alarm ${alarm.id} at ${alarm.time} for days ${days.join(',')}`);
-     } catch (error) {
-       console.error("Failed to schedule native notification:", error);
-     }
-   }, [isNative, scheduleRepeatingAlarm, getNotificationId]);
- 
-   // Cancel native notification for an alarm
-   const cancelNativeNotification = useCallback(async (alarmId: string, daysCount: number = 7) => {
-     try {
-       if (!isNative) return;
-       
-       const notificationId = getNotificationId(alarmId);
-       // Cancel all day-specific notifications (id * 10 + dayIndex)
-       for (let i = 0; i < daysCount; i++) {
-         await cancelNativeAlarm(notificationId * 10 + i);
-       }
-       
-       console.log(`Cancelled native notifications for alarm ${alarmId}`);
-     } catch (error) {
-       console.error("Failed to cancel native notification:", error);
-     }
-   }, [isNative, cancelNativeAlarm, getNotificationId]);
- 
-   useEffect(() => {
-     if (isNative) {
-       console.log('[Alarm] Setting up native alarm features');
-       registerAlarmActions();
-       requestPermissions().then(result => {
-         console.log('[Alarm] Notification permissions:', result);
-       });
-       
-       // Set up notification listeners
-       const cleanup = addNotificationListeners(
-         (notification) => {
-           console.log('Notification received:', notification);
-            console.log('[Alarm] Triggering alarm sound from notification');
-           
-           // Get alarm config from notification extra data
-           const notifAlarmId = notification.extra?.alarmId;
-           const foundAlarm = alarms?.find(a => a.id === notifAlarmId || getNotificationId(a.id) === notifAlarmId);
-           
-           const soundId = (foundAlarm?.sound_id as AlarmSoundType) || 'sunrise';
-           const gradualVolume = foundAlarm?.gradual_volume ?? true;
-           const vibrationEnabled = foundAlarm?.vibration ?? true;
-           const captchaType = (foundAlarm?.captcha_type as CaptchaType) || 'math';
-           const captchaDifficulty = foundAlarm?.captcha_difficulty || 2;
-           
-           // Show the CAPTCHA when alarm fires
-           startAlarm();
-           setActiveAlarmCaptcha({
-             captchaType,
-             difficulty: captchaDifficulty,
-             soundId,
-             gradualVolume,
-             vibrationEnabled,
-           });
-          // On native, the notification sound plays via the native file
-          // We also try Web Audio as fallback when app comes to foreground
-          if (!isNative) {
-            console.log('[Alarm] Playing alarm sound via Web Audio:', soundId);
-            playAlarm(soundId, gradualVolume, vibrationEnabled).then(success => {
-              console.log('[Alarm] Alarm sound started:', success);
-            }).catch(err => {
-              console.error('[Alarm] Failed to start alarm sound:', err);
-            });
-          } else {
-            // On native, vibrate continuously until dismissed
-            console.log('[Alarm] Native notification - starting vibration pattern');
-            const vibrateLoop = () => {
-              if (navigator.vibrate) {
-                navigator.vibrate([500, 200, 500, 200, 500, 500]);
-              }
-            };
-            vibrateLoop();
-            // Continue vibrating every 2.5s
-            const vibInterval = setInterval(vibrateLoop, 2500);
-            // Store interval for cleanup
-            (window as any).__alarmVibInterval = vibInterval;
-          }
-           setShowCaptcha(true);
-         },
-         (action) => {
-           console.log('Notification action:', action);
-            if (action.actionId === 'snooze') {
-               // Stop current alarm sound
-               stopAlarmSound();
-              // Stop vibration
-              if ((window as any).__alarmVibInterval) {
-                clearInterval((window as any).__alarmVibInterval);
-              }
-              if (navigator.vibrate) navigator.vibrate(0);
-               setShowCaptcha(false);
-               setActiveAlarmCaptcha(null);
-              
-              // Reschedule for 5 minutes later
-              const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
-              const snoozeId = Math.floor(Math.random() * 90000) + 10000;
-              scheduleAlarm({
-                id: snoozeId,
-                title: '⏰ Snoozed Alarm',
-                body: 'Time to wake up! (snoozed)',
-                scheduledAt: snoozeTime,
-                sound: 'alarm_sound.wav',
-              });
-              console.log('[Alarm] Snoozed - rescheduled for', snoozeTime.toLocaleTimeString());
-              toast.info('Alarm snoozed for 5 minutes');
-           } else if (action.actionId === 'dismiss') {
-              // Stop alarm completely
-              stopAlarmSound();
-             // Stop vibration
-             if ((window as any).__alarmVibInterval) {
-               clearInterval((window as any).__alarmVibInterval);
-             }
-             if (navigator.vibrate) navigator.vibrate(0);
-              setShowCaptcha(false);
-              setActiveAlarmCaptcha(null);
-             toast.success('Alarm dismissed');
-           }
-         }
-       );
-       
-       return cleanup;
-     }
-   }, [isNative, registerAlarmActions, requestPermissions, addNotificationListeners, startAlarm, alarms, getNotificationId, playAlarm, stopAlarmSound, audioUnlocked, scheduleAlarm]);
- 
-   // Sync alarms with native notifications when alarms change
-   useEffect(() => {
-     if (isNative && alarms && alarms.length > 0) {
-       // Schedule enabled alarms
-       alarms.forEach(alarm => {
-         if (alarm.enabled) {
-           scheduleNativeNotification(alarm);
-         }
-       });
-     }
-   }, [isNative, alarms, scheduleNativeNotification]);
- 
-   const testAlarm = () => {
-      console.log('[Alarm] Testing alarm sound');
-     startAlarm();
-     setActiveAlarmCaptcha({
-       captchaType: settings.captchaType,
-       difficulty: settings.captchaDifficulty,
-       soundId: 'sunrise',
-       gradualVolume: false,
-       vibrationEnabled: true,
-     });
-     // Play alarm sound using Web Audio API
-      playAlarm('sunrise', false, true).then(success => {
-        console.log('[Alarm] Test alarm sound result:', success);
-        if (!success) {
-          toast.error('Could not play alarm sound - tap screen first to enable audio');
-        }
+  const cancelNativeNotification = useCallback(async (alarmId: string, daysCount: number = 7) => {
+    if (!isNative) return;
+    const notificationId = getNotificationId(alarmId);
+    for (let i = 0; i < daysCount; i++) {
+      await cancelNativeAlarm(notificationId * 10 + i);
+    }
+  }, [isNative, cancelNativeAlarm, getNotificationId]);
+
+  // Sync alarms with native notifications
+  useEffect(() => {
+    if (isNative && alarms && alarms.length > 0) {
+      alarms.forEach(alarm => {
+        if (alarm.enabled) scheduleNativeNotification(alarm);
       });
-     setShowCaptcha(true);
-   };
+    }
+  }, [isNative, alarms, scheduleNativeNotification]);
  
-    const handleDismissAlarm = () => {
-      stopAlarmSound();
-      if ((window as any).__alarmVibInterval) {
-        clearInterval((window as any).__alarmVibInterval);
-      }
-      if (navigator.vibrate) navigator.vibrate(0);
-      setShowCaptcha(false);
-      setActiveAlarmCaptcha(null);
-    };
 
-    const handleSnoozeAlarm = useCallback(() => {
-      stopAlarmSound();
-      if ((window as any).__alarmVibInterval) {
-        clearInterval((window as any).__alarmVibInterval);
-      }
-      if (navigator.vibrate) navigator.vibrate(0);
-      setShowCaptcha(false);
-      setActiveAlarmCaptcha(null);
 
-      // Schedule snooze notification for 5 minutes later
-      const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
-      const snoozeId = Math.floor(Math.random() * 90000) + 10000;
-      scheduleAlarm({
-        id: snoozeId,
-        title: '⏰ Snoozed Alarm',
-        body: 'Time to wake up! (snoozed)',
-        scheduledAt: snoozeTime,
-        sound: 'alarm_sound.wav',
-      });
-      console.log('[Alarm] Snoozed - rescheduled for', snoozeTime.toLocaleTimeString());
-      toast.info('Alarm snoozed for 5 minutes');
-    }, [stopAlarmSound, scheduleAlarm]);
  
    const handleFormSubmit = async (data: AlarmFormData) => {
      if (!user) {
@@ -436,16 +187,6 @@
      <div className="min-h-screen pb-24 relative">
        <StarField />
  
-        {showCaptcha && (
-          <FullScreenAlarm
-            onDismiss={handleDismissAlarm}
-            onSnooze={handleSnoozeAlarm}
-            alarmLabel={activeAlarmCaptcha?.soundId || "Alarm"}
-            captchaType={activeAlarmCaptcha?.captchaType || settings.captchaType}
-            difficulty={activeAlarmCaptcha?.difficulty || settings.captchaDifficulty}
-            captchaEnabled={true}
-          />
-        )}
  
        {/* Alarm Form Dialog */}
        <AlarmFormDialog
