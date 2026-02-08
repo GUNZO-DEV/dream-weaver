@@ -130,7 +130,14 @@ export const FullScreenAlarm = ({
     }
   }, [shakeCount, challenge, onDismiss]);
 
+  const triggerHaptic = useCallback((pattern: number | number[] = 30) => {
+    if (navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  }, []);
+
   const handleDismissPress = useCallback(() => {
+    triggerHaptic(50);
     if (!captchaEnabled) {
       onDismiss();
       return;
@@ -141,13 +148,16 @@ export const FullScreenAlarm = ({
     setMemoryPhase("show");
     setShakeCount(0);
     setShowCaptcha(true);
-  }, [captchaEnabled, captchaType, difficulty, onDismiss]);
+  }, [captchaEnabled, captchaType, difficulty, onDismiss, triggerHaptic]);
 
   const handleSubmit = useCallback(() => {
+    triggerHaptic(40);
     const isCorrect = userAnswer.toLowerCase().trim() === challenge.answer.toLowerCase();
     if (isCorrect) {
+      triggerHaptic([50, 30, 50]);
       onDismiss();
     } else {
+      triggerHaptic([100, 50, 100]);
       setShowError(true);
       setUserAnswer("");
       setAttempts((prev) => {
@@ -250,7 +260,7 @@ export const FullScreenAlarm = ({
           >
             {/* Snooze */}
             <Button
-              onClick={onSnooze}
+              onClick={() => { triggerHaptic([30, 50, 30]); onSnooze(); }}
               variant="secondary"
               className="w-full h-16 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/80"
             >
