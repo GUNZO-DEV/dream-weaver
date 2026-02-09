@@ -6,11 +6,17 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     LocalNotifications: {
-      // Use custom sound for alarms
       sound: 'alarm_sound.wav',
-      // Android: high priority for alarm-style notifications
       smallIcon: 'ic_stat_alarm',
       iconColor: '#6366f1',
+    },
+    BackgroundRunner: {
+      label: 'app.lovable.sleepwell.alarm-check',
+      src: 'background.js',
+      event: 'checkAlarms',
+      repeat: true,
+      interval: 1,
+      autoStart: true,
     },
   },
 };
