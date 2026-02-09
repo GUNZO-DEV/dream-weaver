@@ -160,35 +160,49 @@ export const useNativeAlarm = () => {
       return null;
     }
 
+    const isIOS = Capacitor.getPlatform() === 'ios';
+
     // For repeating alarms, we schedule one for each day
-    const notifications = daysOfWeek.map((day, index) => ({
-      id: id * 10 + index, // Unique ID per day
-      title,
-      body,
-      schedule: {
-        on: {
-          weekday: day,
-          hour,
-          minute,
+    const notifications = daysOfWeek.map((day, index) => {
+      const notification: any = {
+        id: id * 10 + index, // Unique ID per day
+        title,
+        body,
+        schedule: {
+          on: {
+            weekday: day,
+            hour,
+            minute,
+          },
+          repeats: true,
+          ...(isIOS ? {} : { allowWhileIdle: true }),
         },
-        repeats: true,
-        allowWhileIdle: true,
-      },
-      sound: 'alarm_sound.wav', // Native sound file for persistent alarm
-      actionTypeId: 'ALARM_ACTIONS',
-      extra: { alarmId: id, dayOfWeek: day },
-      channelId: 'alarm_channel', // Android high-priority channel
-      threadIdentifier: 'alarms',
-      summaryArgument: title,
-      ongoing: true,
-      autoCancel: false,
-      // iOS Critical Alert - bypasses Do Not Disturb and Silent Mode
-      interruptionLevel: 'critical' as any,
-    }));
+        sound: 'alarm_sound.wav',
+        actionTypeId: 'ALARM_ACTIONS',
+        extra: { alarmId: id, dayOfWeek: day },
+      };
+
+      // Android-specific properties
+      if (!isIOS) {
+        notification.channelId = 'alarm_channel';
+        notification.ongoing = true;
+        notification.autoCancel = false;
+      }
+
+      // iOS-specific properties
+      if (isIOS) {
+        notification.threadIdentifier = 'alarms';
+        notification.summaryArgument = title;
+        // timeSensitive works without special entitlement (unlike critical)
+        notification.interruptionLevel = 'timeSensitive';
+      }
+
+      return notification;
+    });
 
     try {
       const result = await LocalNotifications.schedule({ notifications });
-      console.log('Repeating alarms scheduled:', result);
+      console.log('Repeating alarms scheduled:', JSON.stringify(result));
       return result;
     } catch (error) {
       console.error('Failed to schedule repeating alarm:', error);
