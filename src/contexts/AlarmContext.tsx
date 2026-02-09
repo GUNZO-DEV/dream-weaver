@@ -5,6 +5,7 @@ import { useAlarmCaptcha, CaptchaType } from "@/hooks/useAlarmCaptcha";
 import { useAlarms } from "@/hooks/useAlarms";
 import { useAuth } from "@/contexts/AuthContext";
 import { FullScreenAlarm } from "@/components/FullScreenAlarm";
+import { syncAlarmsToStorage } from "@/lib/alarmStorage";
 import { toast } from "sonner";
 
 interface AlarmContextType {
@@ -186,6 +187,20 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     handleSnooze,
     handleDismiss,
   ]);
+
+  // Sync alarms to persistent storage for Background Runner
+  useEffect(() => {
+    if (!alarms || !isNative) return;
+    syncAlarmsToStorage(
+      alarms.map(a => ({
+        id: a.id,
+        time: a.time,
+        label: a.label,
+        days_of_week: a.days_of_week,
+        enabled: a.enabled,
+      }))
+    );
+  }, [alarms, isNative]);
 
   // Also check for web-based alarm timing (when app is open but not native)
   useEffect(() => {
