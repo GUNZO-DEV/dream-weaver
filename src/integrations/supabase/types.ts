@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      alarm_triggers: {
+        Row: {
+          alarm_id: string
+          captcha_difficulty: number | null
+          captcha_type: string | null
+          dismissed: boolean | null
+          gradual_volume: boolean | null
+          id: string
+          label: string | null
+          sound_id: string | null
+          triggered_at: string
+          user_id: string
+          vibration: boolean | null
+        }
+        Insert: {
+          alarm_id: string
+          captcha_difficulty?: number | null
+          captcha_type?: string | null
+          dismissed?: boolean | null
+          gradual_volume?: boolean | null
+          id?: string
+          label?: string | null
+          sound_id?: string | null
+          triggered_at?: string
+          user_id: string
+          vibration?: boolean | null
+        }
+        Update: {
+          alarm_id?: string
+          captcha_difficulty?: number | null
+          captcha_type?: string | null
+          dismissed?: boolean | null
+          gradual_volume?: boolean | null
+          id?: string
+          label?: string | null
+          sound_id?: string | null
+          triggered_at?: string
+          user_id?: string
+          vibration?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alarm_triggers_alarm_id_fkey"
+            columns: ["alarm_id"]
+            isOneToOne: false
+            referencedRelation: "alarms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alarms: {
         Row: {
           captcha_difficulty: number | null
@@ -346,7 +396,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_old_alarm_triggers: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
