@@ -3,6 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { StarField } from "@/components/StarField";
 import { AlarmCard } from "@/components/AlarmCard";
 import { NoiseRecorder } from "@/components/NoiseRecorder";
+import { MissedAlarmsBanner } from "@/components/MissedAlarmsBanner";
 import { Button } from "@/components/ui/button";
 import { Plus, Bell, Clock, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
