@@ -203,6 +203,42 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [alarms, isNative]);
 
+  // Server-side alarm triggers via Realtime (works even when app was killed)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('alarm-triggers')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'alarm_triggers',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[AlarmProvider] Server-side alarm trigger received:', payload);
+          const trigger = payload.new as any;
+          if (trigger.dismissed) return;
+
+          triggerAlarmUI({
+            captchaType: (trigger.captcha_type as CaptchaType) || "math",
+            difficulty: trigger.captcha_difficulty || 2,
+            label: trigger.label || "Alarm",
+            soundId: (trigger.sound_id as AlarmSoundType) || "sunrise",
+            gradualVolume: trigger.gradual_volume ?? true,
+            vibrationEnabled: trigger.vibration ?? true,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, triggerAlarmUI]);
+
   // Also check for web-based alarm timing (when app is open but not native)
   useEffect(() => {
     if (isNative || !alarms || !user) return;
