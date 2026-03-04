@@ -6,6 +6,7 @@ import { useAlarms } from "@/hooks/useAlarms";
 import { useAuth } from "@/contexts/AuthContext";
 import { FullScreenAlarm } from "@/components/FullScreenAlarm";
 import { syncAlarmsToStorage } from "@/lib/alarmStorage";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface AlarmContextType {
