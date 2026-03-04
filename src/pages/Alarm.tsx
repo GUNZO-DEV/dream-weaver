@@ -226,7 +226,9 @@ const Alarm = () => {
          <p className="text-muted-foreground text-sm mt-1">Wake up at the optimal time</p>
        </motion.header>
  
-       <main className="px-6 space-y-6 relative z-10">
+        <main className="px-6 space-y-6 relative z-10">
+          {/* Missed Alarms Banner */}
+          <MissedAlarmsBanner />
          {/* Alarms List */}
          <motion.section
            className="space-y-4"
