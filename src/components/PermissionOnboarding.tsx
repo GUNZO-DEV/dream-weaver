@@ -56,7 +56,7 @@ export const PermissionOnboarding = () => {
         if (seen === "1") return;
         // If display + critical are both already in a final state, mark complete silently
         const current = await LocalNotifications.checkPermissions();
-        if (current.display === "granted" && critical.critical !== "notDetermined") {
+        if (current.display === "granted" && critical.critical !== "unknown") {
           await storageSet(ONBOARDING_KEY, "1");
           return;
         }
