@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AlarmProvider } from "@/contexts/AlarmContext";
+import { PermissionOnboarding } from "@/components/PermissionOnboarding";
 import Index from "./pages/Index";
 import Stats from "./pages/Stats";
 import Sounds from "./pages/Sounds";
@@ -89,6 +90,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <PermissionOnboarding />
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
