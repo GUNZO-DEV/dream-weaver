@@ -94,9 +94,17 @@ const Diagnostics = () => {
       </header>
 
       <section className="px-4 pt-6">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-          This device
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            This device
+          </p>
+          {contextResolving && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" />
+              <span>Resolving context…</span>
+            </div>
+          )}
+        </div>
         <Card className="p-4 bg-card/60 backdrop-blur border-border">
           <div className="flex items-start gap-3">
             <div className="shrink-0 rounded-lg p-2 bg-primary/15 text-primary">
