@@ -190,9 +190,17 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
       (notification) => {
         console.log("[AlarmProvider] Notification received:", notification);
         const notifAlarmId = notification.extra?.alarmId;
+        const isRepeating = notification.extra?.repeating === true;
         const foundAlarm = alarms?.find(
           (a) => a.id === notifAlarmId || getNotificationId(a.id) === notifAlarmId
         );
+
+        // If this notification was part of a repeating-snooze cycle and the
+        // user did nothing, immediately queue the next ring 5 min out so the
+        // cycle continues until they explicitly dismiss.
+        if (isRepeating) {
+          scheduleSnooze({ repeating: true });
+        }
 
         triggerAlarmUI({
           captchaType: (foundAlarm?.captcha_type as CaptchaType) || "math",
@@ -204,22 +212,16 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         });
       },
       (action) => {
-        // Background actions: this fires the moment the user taps Snooze/Dismiss
+        // Background actions: this fires the moment the user taps an action
         // on the lock screen, even if the app was killed. We must do the
         // minimum work synchronously so the response feels instant.
         console.log("[AlarmProvider] Notification action:", action.actionId);
         if (action.actionId === "snooze") {
-          // Schedule a fresh notification 5 min out — no UI required.
-          const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
-          const snoozeId = Math.floor(Math.random() * 90000) + 10000;
-          scheduleAlarm({
-            id: snoozeId,
-            title: "⏰ Snoozed Alarm",
-            body: "Time to wake up! (snoozed)",
-            scheduledAt: snoozeTime,
-            sound: "alarm_sound.wav",
-          });
-          // Stop any in-app ringing if the app happened to be open.
+          scheduleSnooze({ repeating: false });
+          stopEverything();
+        } else if (action.actionId === "snooze_repeat") {
+          // Repeats every 5 min until the user taps Dismiss.
+          scheduleSnooze({ repeating: true });
           stopEverything();
         } else if (action.actionId === "dismiss") {
           stopEverything();
