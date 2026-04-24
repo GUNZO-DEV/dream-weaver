@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Dreams from "./pages/Dreams";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Diagnostics from "./pages/Diagnostics";
 
 const queryClient = new QueryClient();
 
