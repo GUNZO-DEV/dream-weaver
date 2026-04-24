@@ -126,12 +126,12 @@ export const PermissionOnboarding = () => {
     setOpen(false);
   };
 
-  const StatusBadge = ({ value }: { value: StepStatus }) => {
+  const StatusBadge = ({ value, label }: { value: StepStatus; label?: string }) => {
     if (value === "granted") {
       return (
         <div className="flex items-center gap-2 text-sm text-primary">
           <CheckCircle2 size={16} />
-          <span>Allowed</span>
+          <span>{label ?? "Allowed"}</span>
         </div>
       );
     }
@@ -140,6 +140,14 @@ export const PermissionOnboarding = () => {
         <div className="flex items-center gap-2 text-sm text-destructive">
           <XCircle size={16} />
           <span>Not allowed</span>
+        </div>
+      );
+    }
+    if (value === "unsupported") {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ShieldAlert size={16} />
+          <span>Entitlement missing</span>
         </div>
       );
     }
