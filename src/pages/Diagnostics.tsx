@@ -198,6 +198,28 @@ const Diagnostics = () => {
                     <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                       {formatTimestamp(entry.timestamp)}
                     </p>
+                    {entry.context && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {entry.context.platform}
+                          {entry.context.osVersion ? ` ${entry.context.osVersion}` : ""}
+                        </Badge>
+                        {entry.context.model && (
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {entry.context.model}
+                          </Badge>
+                        )}
+                        {entry.context.appVersion && (
+                          <Badge variant="secondary" className="text-[10px] font-normal tabular-nums">
+                            v{entry.context.appVersion}
+                            {entry.context.appBuild ? ` (${entry.context.appBuild})` : ""}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {entry.context.timezone}
+                        </Badge>
+                      </div>
+                    )}
                     {(entry.alarmId || entry.meta) && (
                       <pre className="text-[10px] text-muted-foreground/80 mt-2 whitespace-pre-wrap break-all font-mono">
                         {JSON.stringify(
