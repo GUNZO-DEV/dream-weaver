@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, BellRing, CheckCircle2, XCircle, Loader2, ShieldAlert } from "lucide-react";
+import { Bell, BellRing, CheckCircle2, XCircle, Loader2, ShieldAlert, Settings as SettingsIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { storageGet, storageSet } from "@/lib/capacitorStorage";
@@ -11,6 +11,7 @@ import {
   checkCriticalAlertsStatus,
   requestCriticalAlerts,
   isCriticalAlertsSupported,
+  openIosNotificationSettings,
   type CriticalSetting,
 } from "@/lib/criticalAlerts";
 
