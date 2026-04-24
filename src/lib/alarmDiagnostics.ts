@@ -41,6 +41,27 @@ const MAX_ENTRIES = 200;
 
 let contextCache: DeviceContext | null = null;
 let contextPromise: Promise<DeviceContext> | null = null;
+let contextResolvedAt: number | null = null;
+const contextResolvedListeners = new Set<(at: number) => void>();
+
+export const getContextResolvedAt = (): number | null => contextResolvedAt;
+
+export const subscribeContextResolved = (
+  listener: (at: number) => void
+): (() => void) => {
+  contextResolvedListeners.add(listener);
+  // Fire immediately if already resolved.
+  if (contextResolvedAt !== null) {
+    try {
+      listener(contextResolvedAt);
+    } catch (err) {
+      console.error("[alarmDiagnostics] context listener error:", err);
+    }
+  }
+  return () => {
+    contextResolvedListeners.delete(listener);
+  };
+};
 
 const getTimezone = (): string => {
   try {
@@ -94,6 +115,14 @@ export const getDeviceContext = (): Promise<DeviceContext> => {
   if (contextPromise) return contextPromise;
   contextPromise = resolveDeviceContext().then((ctx) => {
     contextCache = ctx;
+    contextResolvedAt = Date.now();
+    contextResolvedListeners.forEach((l) => {
+      try {
+        l(contextResolvedAt!);
+      } catch (err) {
+        console.error("[alarmDiagnostics] context listener error:", err);
+      }
+    });
     // Back-patch any cached entries that were logged before context resolved
     // (including entries loaded from a previous session's persisted log).
     void backPatchMissingContext(ctx);
