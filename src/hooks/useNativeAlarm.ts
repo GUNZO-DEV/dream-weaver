@@ -146,6 +146,8 @@ export const useNativeAlarm = () => {
     }
   }, [isNative]);
 
+  const toNativeWeekday = useCallback((day: number) => day + 1, []);
+
   // Schedule a repeating alarm for specific days
   const scheduleRepeatingAlarm = useCallback(async (
     id: number,
@@ -153,7 +155,7 @@ export const useNativeAlarm = () => {
     body: string,
     hour: number,
     minute: number,
-    daysOfWeek: number[] // 1 = Sunday, 2 = Monday, etc.
+    daysOfWeek: number[] // App format: 0 = Sunday, 1 = Monday, etc.
   ) => {
     if (!isNative) {
       console.log('Native notifications not available in web');
@@ -161,9 +163,10 @@ export const useNativeAlarm = () => {
     }
 
     const isIOS = Capacitor.getPlatform() === 'ios';
+    const nativeWeekdays = [...new Set(daysOfWeek.map(toNativeWeekday).filter((day) => day >= 1 && day <= 7))];
 
     // For repeating alarms, we schedule one for each day
-    const notifications = daysOfWeek.map((day, index) => {
+    const notifications = nativeWeekdays.map((day, index) => {
       const notification: any = {
         id: id * 10 + index, // Unique ID per day
         title,
@@ -208,7 +211,7 @@ export const useNativeAlarm = () => {
       console.error('Failed to schedule repeating alarm:', error);
       return null;
     }
-  }, [isNative]);
+  }, [isNative, toNativeWeekday]);
 
   // Register action types for the alarm
   const registerAlarmActions = useCallback(async () => {

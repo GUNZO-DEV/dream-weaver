@@ -47,7 +47,7 @@ const Alarm = () => {
     if (!isNative || !alarm.enabled) return;
     const [hours, minutes] = alarm.time.split(':').map(Number);
     const notificationId = getNotificationId(alarm.id);
-    const days = alarm.days_of_week || [2, 3, 4, 5, 6];
+    const days = alarm.days_of_week || [1, 2, 3, 4, 5];
     await scheduleRepeatingAlarm(notificationId, "⏰ Wake Up!", alarm.label || "Time to wake up", hours, minutes, days);
   }, [isNative, scheduleRepeatingAlarm, getNotificationId]);
 

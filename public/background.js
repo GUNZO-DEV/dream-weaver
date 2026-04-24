@@ -8,9 +8,6 @@ addEventListener('checkAlarms', async (resolve, reject, args) => {
     const currentMinute = now.getMinutes();
     const currentDay = now.getDay(); // 0=Sunday, 1=Monday...
 
-    // Map JS day (0=Sun) to our format (1=Sun for Capacitor weekday)
-    const capacitorDay = currentDay + 1; // 1=Sunday, 2=Monday...
-
     // Check stored alarms from persistent storage
     const alarmsJson = CapacitorKV.get('active_alarms');
     
@@ -35,8 +32,8 @@ addEventListener('checkAlarms', async (resolve, reject, args) => {
       // Check if current time matches alarm time
       if (alarmHour === currentHour && alarmMinute === currentMinute) {
         // Check if today is a scheduled day
-        const days = alarm.days_of_week || [2, 3, 4, 5, 6]; // Default Mon-Fri
-        if (days.includes(capacitorDay)) {
+        const days = alarm.days_of_week || [1, 2, 3, 4, 5]; // Default Mon-Fri in app format
+        if (days.includes(currentDay)) {
           // Schedule an immediate notification to wake the user
           const scheduleDate = new Date();
           scheduleDate.setSeconds(scheduleDate.getSeconds() + 1);

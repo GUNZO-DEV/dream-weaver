@@ -246,7 +246,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     const checkAlarms = () => {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-      const currentDay = now.getDay() === 0 ? 7 : now.getDay(); // 1=Mon..7=Sun
+      const currentDay = now.getDay(); // 0=Sun..6=Sat
 
       alarms.forEach((alarm) => {
         if (!alarm.enabled) return;
