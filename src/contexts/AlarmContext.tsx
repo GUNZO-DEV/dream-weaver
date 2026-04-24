@@ -175,11 +175,25 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         });
       },
       (action) => {
-        console.log("[AlarmProvider] Notification action:", action);
+        // Background actions: this fires the moment the user taps Snooze/Dismiss
+        // on the lock screen, even if the app was killed. We must do the
+        // minimum work synchronously so the response feels instant.
+        console.log("[AlarmProvider] Notification action:", action.actionId);
         if (action.actionId === "snooze") {
-          handleSnooze();
+          // Schedule a fresh notification 5 min out — no UI required.
+          const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
+          const snoozeId = Math.floor(Math.random() * 90000) + 10000;
+          scheduleAlarm({
+            id: snoozeId,
+            title: "⏰ Snoozed Alarm",
+            body: "Time to wake up! (snoozed)",
+            scheduledAt: snoozeTime,
+            sound: "alarm_sound.wav",
+          });
+          // Stop any in-app ringing if the app happened to be open.
+          stopEverything();
         } else if (action.actionId === "dismiss") {
-          handleDismiss();
+          stopEverything();
         }
       }
     );

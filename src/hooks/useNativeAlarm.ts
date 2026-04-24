@@ -37,7 +37,11 @@ export const useNativeAlarm = () => {
         console.warn('Failed to create alarm channel:', err);
       });
       
-      // Register action types for notifications
+      // Register action types for notifications.
+      // Snooze is a BACKGROUND action so a tap from the lock screen / banner
+      // responds instantly without having to launch the app UI.
+      // Dismiss also stays in the background to silence the alarm immediately;
+      // the OS routes the action to our JS listener as soon as the app wakes.
       LocalNotifications.registerActionTypes({
         types: [
           {
@@ -46,21 +50,21 @@ export const useNativeAlarm = () => {
               {
                 id: 'snooze',
                 title: 'Snooze (5 min)',
-                foreground: true, // Bring app to foreground to handle snooze
+                foreground: false,
               },
               {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
-                foreground: true, // Bring app to foreground to stop alarm
+                foreground: false,
               },
             ],
           },
         ],
       }).then(() => {
-        console.log('Alarm actions registered on mount');
+        console.log('[useNativeAlarm] Alarm actions registered on mount');
       }).catch(err => {
-        console.error('Failed to register alarm actions:', err);
+        console.error('[useNativeAlarm] Failed to register alarm actions:', err);
       });
     }
   }, [isNative]);
@@ -214,7 +218,9 @@ export const useNativeAlarm = () => {
     }
   }, [isNative, toNativeWeekday]);
 
-  // Register action types for the alarm
+  // Register action types for the alarm.
+  // Background actions (foreground:false) so Snooze/Dismiss taps from the
+  // lock screen respond instantly without launching the app UI.
   const registerAlarmActions = useCallback(async () => {
     if (!isNative) return;
 
@@ -226,22 +232,22 @@ export const useNativeAlarm = () => {
             actions: [
               {
                 id: 'snooze',
-                title: 'Snooze',
-                foreground: true,
+                title: 'Snooze (5 min)',
+                foreground: false,
               },
               {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
-                foreground: true,
+                foreground: false,
               },
             ],
           },
         ],
       });
-      console.log('Alarm actions registered');
+      console.log('[useNativeAlarm] Alarm actions registered');
     } catch (error) {
-      console.error('Failed to register alarm actions:', error);
+      console.error('[useNativeAlarm] Failed to register alarm actions:', error);
     }
   }, [isNative]);
 
