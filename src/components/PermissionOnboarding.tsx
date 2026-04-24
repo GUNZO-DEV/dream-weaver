@@ -27,7 +27,7 @@ interface StepState {
 export const PermissionOnboarding = () => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"intro" | "notifications" | "critical" | "done">("intro");
-  const [status, setStatus] = useState<StepState>({ notifications: "idle", critical: "idle" });
+  const [status, setStatus] = useState<StepState>({ notifications: "idle", critical: "idle", criticalDetail: null });
 
   // Decide whether to show the onboarding on first launch (native only)
   useEffect(() => {
