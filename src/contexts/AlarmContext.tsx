@@ -6,6 +6,7 @@ import { useAlarms } from "@/hooks/useAlarms";
 import { useAuth } from "@/contexts/AuthContext";
 import { FullScreenAlarm } from "@/components/FullScreenAlarm";
 import { syncAlarmsToStorage } from "@/lib/alarmStorage";
+import { onNativeAlarmSoundFallback } from "@/lib/scheduleNativeAlarms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -117,7 +118,14 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
       setShowAlarm(true);
 
       if (!isNative) {
-        playAlarm(config.soundId, config.gradualVolume, config.vibrationEnabled);
+        // Fire-and-forget; the hook handles its own fallback chain.
+        void playAlarm(config.soundId, config.gradualVolume, config.vibrationEnabled).then((result) => {
+          if (!result.ok) {
+            toast.error(result.reason || "Alarm sound failed to play");
+          } else if (result.fellBack) {
+            toast.warning(result.reason || "Using fallback alarm sound");
+          }
+        });
       } else {
         // Native: vibrate continuously
         const vibrateLoop = () => {
@@ -202,6 +210,17 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
       }))
     );
   }, [alarms, isNative]);
+
+  // Surface a user-facing toast whenever the native scheduler had to fall
+  // back from the bundled alarm sound to the system default.
+  useEffect(() => {
+    if (!isNative) return;
+    const unsubscribe = onNativeAlarmSoundFallback(({ reason }) => {
+      console.warn("[AlarmProvider] Native alarm sound fallback:", reason);
+      toast.warning("Alarm sound fallback", { description: reason });
+    });
+    return unsubscribe;
+  }, [isNative]);
 
   // Server-side alarm triggers via Realtime (works even when app was killed)
   useEffect(() => {
