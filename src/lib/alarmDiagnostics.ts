@@ -181,11 +181,17 @@ export const logAlarmTrigger = (
     label: details?.label,
     alarmId: details?.alarmId,
     meta: details?.meta,
+    // Attach cached device/build context if it's already resolved. If not,
+    // the entry will be patched in once it resolves (see below).
+    context: contextCache ?? undefined,
   };
 
   // Tagged console line for Xcode / Android Studio logcat searching.
   console.log(
-    `[AlarmDiag] source=${source} label=${entry.label ?? "-"} alarmId=${entry.alarmId ?? "-"}`,
+    `[AlarmDiag] source=${source} label=${entry.label ?? "-"} alarmId=${entry.alarmId ?? "-"} ` +
+      `platform=${entry.context?.platform ?? "?"} app=${entry.context?.appVersion ?? "?"}` +
+      `(${entry.context?.appBuild ?? "?"}) os=${entry.context?.osVersion ?? "?"} ` +
+      `tz=${entry.context?.timezone ?? "?"}`,
     entry.meta ?? ""
   );
 
@@ -196,9 +202,27 @@ export const logAlarmTrigger = (
   cache = next;
   notify();
 
-  void writeRaw(JSON.stringify(next)).catch((err) =>
-    console.error("[alarmDiagnostics] persist failed:", err)
-  );
+  const persist = (entries: AlarmDiagnosticEntry[]) =>
+    writeRaw(JSON.stringify(entries)).catch((err) =>
+      console.error("[alarmDiagnostics] persist failed:", err)
+    );
+
+  void persist(next);
+
+  // If context wasn't ready yet, patch this entry as soon as it resolves so
+  // troubleshooting still has full device info.
+  if (!entry.context) {
+    void getDeviceContext().then((ctx) => {
+      if (!cache) return;
+      const idx = cache.findIndex((e) => e.id === entry.id);
+      if (idx === -1) return;
+      const patched = [...cache];
+      patched[idx] = { ...patched[idx], context: ctx };
+      cache = patched;
+      notify();
+      void persist(patched);
+    });
+  }
 };
 
 export const clearAlarmDiagnostics = async (): Promise<void> => {
