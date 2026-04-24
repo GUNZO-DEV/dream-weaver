@@ -90,19 +90,35 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     toast.success("Alarm dismissed");
   }, [stopEverything]);
 
+  const scheduleSnooze = useCallback(
+    (opts: { repeating: boolean }) => {
+      const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
+      const snoozeId = Math.floor(Math.random() * 90000) + 10000;
+      scheduleAlarm({
+        id: snoozeId,
+        title: opts.repeating ? "⏰ Snoozed Alarm (repeating)" : "⏰ Snoozed Alarm",
+        body: opts.repeating
+          ? "Time to wake up! (will keep repeating until dismissed)"
+          : "Time to wake up! (snoozed)",
+        scheduledAt: snoozeTime,
+        sound: "alarm_sound.wav",
+        extra: { repeating: opts.repeating },
+      });
+    },
+    [scheduleAlarm]
+  );
+
   const handleSnooze = useCallback(() => {
     stopEverything();
-    const snoozeTime = new Date(Date.now() + 5 * 60 * 1000);
-    const snoozeId = Math.floor(Math.random() * 90000) + 10000;
-    scheduleAlarm({
-      id: snoozeId,
-      title: "⏰ Snoozed Alarm",
-      body: "Time to wake up! (snoozed)",
-      scheduledAt: snoozeTime,
-      sound: "alarm_sound.wav",
-    });
+    scheduleSnooze({ repeating: false });
     toast.info("Alarm snoozed for 5 minutes");
-  }, [stopEverything, scheduleAlarm]);
+  }, [stopEverything, scheduleSnooze]);
+
+  const handleSnoozeRepeat = useCallback(() => {
+    stopEverything();
+    scheduleSnooze({ repeating: true });
+    toast.info("Alarm will repeat every 5 minutes until dismissed");
+  }, [stopEverything, scheduleSnooze]);
 
   const triggerAlarmUI = useCallback(
     (config: {
