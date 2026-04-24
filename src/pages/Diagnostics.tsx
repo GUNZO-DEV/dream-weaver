@@ -91,6 +91,45 @@ const Diagnostics = () => {
 
       <section className="px-4 pt-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          This device
+        </p>
+        <Card className="p-4 bg-card/60 backdrop-blur border-border">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 rounded-lg p-2 bg-primary/15 text-primary">
+              <Smartphone size={18} />
+            </div>
+            <div className="min-w-0 flex-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted-foreground">Platform</span>
+              <span className="font-medium text-right truncate">{device?.platform ?? "—"}</span>
+
+              <span className="text-muted-foreground">OS</span>
+              <span className="font-medium text-right truncate">{device?.osVersion ?? "—"}</span>
+
+              <span className="text-muted-foreground">Device</span>
+              <span className="font-medium text-right truncate">
+                {device?.manufacturer ? `${device.manufacturer} ${device.model ?? ""}` : device?.model ?? "—"}
+              </span>
+
+              <span className="text-muted-foreground">App</span>
+              <span className="font-medium text-right truncate tabular-nums">
+                {device?.appVersion ? `${device.appVersion} (${device.appBuild ?? "?"})` : "—"}
+              </span>
+
+              <span className="text-muted-foreground">WebView</span>
+              <span className="font-medium text-right truncate">{device?.webViewVersion ?? "—"}</span>
+
+              <span className="text-muted-foreground">Time zone</span>
+              <span className="font-medium text-right truncate">{device?.timezone ?? "—"}</span>
+
+              <span className="text-muted-foreground">Locale</span>
+              <span className="font-medium text-right truncate">{device?.locale ?? "—"}</span>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section className="px-4 pt-6">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
           Alarm trigger sources
         </p>
         <Card className="p-4 bg-card/60 backdrop-blur border-border">
