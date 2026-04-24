@@ -292,7 +292,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
             difficulty: trigger.captcha_difficulty || 2,
             label: trigger.label || "Alarm",
             soundId: (trigger.sound_id as AlarmSoundType) || "sunrise",
-            gradualVolume: trigger.gradual_volume ?? true,
+            // Match the Test Alarm scenario: full volume immediately.
+            gradualVolume: false,
             vibrationEnabled: trigger.vibration ?? true,
           });
         }
