@@ -207,7 +207,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           difficulty: foundAlarm?.captcha_difficulty || 2,
           label: foundAlarm?.label || "Alarm",
           soundId: (foundAlarm?.sound_id as AlarmSoundType) || "sunrise",
-          gradualVolume: foundAlarm?.gradual_volume ?? true,
+          // Match the Test Alarm scenario: full volume immediately.
+          gradualVolume: false,
           vibrationEnabled: foundAlarm?.vibration ?? true,
         });
       },
@@ -291,7 +292,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
             difficulty: trigger.captcha_difficulty || 2,
             label: trigger.label || "Alarm",
             soundId: (trigger.sound_id as AlarmSoundType) || "sunrise",
-            gradualVolume: trigger.gradual_volume ?? true,
+            // Match the Test Alarm scenario: full volume immediately.
+            gradualVolume: false,
             vibrationEnabled: trigger.vibration ?? true,
           });
         }
@@ -325,7 +327,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           difficulty: alarm.captcha_difficulty || 2,
           label: alarm.label || "Alarm",
           soundId: (alarm.sound_id as AlarmSoundType) || "sunrise",
-          gradualVolume: alarm.gradual_volume ?? true,
+          // Match the Test Alarm scenario: full volume immediately.
+          gradualVolume: false,
           vibrationEnabled: alarm.vibration ?? true,
         });
       });
