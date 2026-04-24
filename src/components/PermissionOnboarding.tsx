@@ -6,6 +6,7 @@ import { Bell, BellRing, CheckCircle2, XCircle, Loader2, ShieldAlert } from "luc
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { storageGet, storageSet } from "@/lib/capacitorStorage";
+import { toast } from "sonner";
 
 const ONBOARDING_KEY = "permission_onboarding_complete_v1";
 
