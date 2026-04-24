@@ -94,6 +94,9 @@ export const getDeviceContext = (): Promise<DeviceContext> => {
   if (contextPromise) return contextPromise;
   contextPromise = resolveDeviceContext().then((ctx) => {
     contextCache = ctx;
+    // Back-patch any cached entries that were logged before context resolved
+    // (including entries loaded from a previous session's persisted log).
+    void backPatchMissingContext(ctx);
     return ctx;
   });
   return contextPromise;
@@ -167,7 +170,29 @@ export const loadAlarmDiagnostics = async (): Promise<AlarmDiagnosticEntry[]> =>
   if (cache) return [...cache];
   const raw = await readRaw();
   cache = safeParse(raw);
+  // If context already resolved, patch any loaded entries that lack it.
+  if (contextCache) void backPatchMissingContext(contextCache);
   return [...cache];
+};
+
+// Patch every cached entry missing a `context` with the resolved one,
+// notify subscribers, and persist. Safe to call multiple times.
+const backPatchMissingContext = async (ctx: DeviceContext): Promise<void> => {
+  if (!cache || cache.length === 0) return;
+  let changed = false;
+  const patched = cache.map((e) => {
+    if (e.context) return e;
+    changed = true;
+    return { ...e, context: ctx };
+  });
+  if (!changed) return;
+  cache = patched;
+  notify();
+  try {
+    await writeRaw(JSON.stringify(patched));
+  } catch (err) {
+    console.error("[alarmDiagnostics] back-patch persist failed:", err);
+  }
 };
 
 export const logAlarmTrigger = (
