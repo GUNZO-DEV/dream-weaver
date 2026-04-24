@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Trash2, Bell, Radio, Clock, FlaskConical, RefreshCw, Smartphone } from "lucide-react";
+import { ArrowLeft, Trash2, Bell, Radio, Clock, FlaskConical, RefreshCw, Smartphone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
