@@ -210,7 +210,7 @@ const Diagnostics = () => {
                     <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                       {formatTimestamp(entry.timestamp)}
                     </p>
-                    {entry.context && (
+                    {entry.context ? (
                       <div className="flex flex-wrap gap-1 mt-2">
                         <Badge variant="secondary" className="text-[10px] font-normal">
                           {entry.context.platform}
@@ -230,6 +230,11 @@ const Diagnostics = () => {
                         <Badge variant="secondary" className="text-[10px] font-normal">
                           {entry.context.timezone}
                         </Badge>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground">
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>Context resolving… entry may update</span>
                       </div>
                     )}
                     {(entry.alarmId || entry.meta) && (
