@@ -33,6 +33,7 @@ const formatTimestamp = (ms: number) => {
 const Diagnostics = () => {
   const [entries, setEntries] = useState<AlarmDiagnosticEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [device, setDevice] = useState<DeviceContext | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -41,6 +42,9 @@ const Diagnostics = () => {
         setEntries(initial);
         setLoading(false);
       }
+    });
+    void getDeviceContext().then((ctx) => {
+      if (mounted) setDevice(ctx);
     });
     const unsub = subscribeAlarmDiagnostics((next) => {
       if (mounted) setEntries(next);
