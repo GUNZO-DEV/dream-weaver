@@ -295,6 +295,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           const trigger = payload.new as any;
           if (trigger.dismissed) return;
 
+          logAlarmTrigger("realtime", {
+            label: trigger.label,
+            alarmId: trigger.alarm_id,
+            meta: { triggerId: trigger.id, triggeredAt: trigger.triggered_at },
+          });
+
           triggerAlarmUI({
             captchaType: (trigger.captcha_type as CaptchaType) || "math",
             difficulty: trigger.captcha_difficulty || 2,
