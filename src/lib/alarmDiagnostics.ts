@@ -3,6 +3,9 @@
 // Capped to MAX_ENTRIES so it never grows unbounded.
 
 import { Preferences } from "@capacitor/preferences";
+import { Device } from "@capacitor/device";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 
 export type AlarmTriggerSource =
   | "native-notification" // LocalNotifications listener fired
@@ -11,6 +14,18 @@ export type AlarmTriggerSource =
   | "test"                // Manual Test Alarm button
   | "snooze-repeat";      // Auto-rescheduled by repeating snooze cycle
 
+export interface DeviceContext {
+  platform: string;       // 'ios' | 'android' | 'web'
+  osVersion?: string;
+  model?: string;         // e.g. 'iPhone15,3'
+  manufacturer?: string;
+  appVersion?: string;    // e.g. '1.0.0'
+  appBuild?: string;      // e.g. '42'
+  webViewVersion?: string;
+  timezone: string;       // IANA, e.g. 'Europe/Paris'
+  locale?: string;
+}
+
 export interface AlarmDiagnosticEntry {
   id: string;
   timestamp: number; // epoch ms
@@ -18,10 +33,74 @@ export interface AlarmDiagnosticEntry {
   label?: string;
   alarmId?: string | number;
   meta?: Record<string, unknown>;
+  context?: DeviceContext;
 }
 
 const STORAGE_KEY = "alarm_diagnostics_log_v1";
 const MAX_ENTRIES = 200;
+
+let contextCache: DeviceContext | null = null;
+let contextPromise: Promise<DeviceContext> | null = null;
+
+const getTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+};
+
+const getLocale = (): string | undefined => {
+  try {
+    return navigator.language;
+  } catch {
+    return undefined;
+  }
+};
+
+// Resolve device + build info once. Safe on web (Capacitor plugins
+// gracefully return browser fallbacks).
+const resolveDeviceContext = async (): Promise<DeviceContext> => {
+  const fallback: DeviceContext = {
+    platform: Capacitor.getPlatform(),
+    timezone: getTimezone(),
+    locale: getLocale(),
+  };
+
+  try {
+    const [info, appInfo] = await Promise.all([
+      Device.getInfo().catch(() => null),
+      // App.getInfo only works on native; calling on web throws.
+      Capacitor.isNativePlatform() ? App.getInfo().catch(() => null) : Promise.resolve(null),
+    ]);
+
+    return {
+      ...fallback,
+      osVersion: info?.osVersion,
+      model: info?.model,
+      manufacturer: info?.manufacturer,
+      webViewVersion: info?.webViewVersion,
+      appVersion: appInfo?.version,
+      appBuild: appInfo?.build,
+    };
+  } catch (err) {
+    console.warn("[alarmDiagnostics] device context unavailable:", err);
+    return fallback;
+  }
+};
+
+export const getDeviceContext = (): Promise<DeviceContext> => {
+  if (contextCache) return Promise.resolve(contextCache);
+  if (contextPromise) return contextPromise;
+  contextPromise = resolveDeviceContext().then((ctx) => {
+    contextCache = ctx;
+    return ctx;
+  });
+  return contextPromise;
+};
+
+// Eagerly start resolving so the first log entry usually has full context.
+void getDeviceContext();
 
 let cache: AlarmDiagnosticEntry[] | null = null;
 const listeners = new Set<(entries: AlarmDiagnosticEntry[]) => void>();
