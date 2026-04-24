@@ -74,3 +74,18 @@ export const requestCriticalAlerts = async (): Promise<CriticalAlertsRequestResu
     return { granted: false, authorization: "unknown", critical: "unknown" };
   }
 };
+
+/**
+ * Opens the iOS Settings app, deep-linking to this app's notification
+ * settings page when possible. Returns false on unsupported platforms.
+ */
+export const openIosNotificationSettings = async (): Promise<boolean> => {
+  if (!isCriticalAlertsSupported()) return false;
+  try {
+    const result = await NativeCriticalAlerts.openSettings();
+    return !!result?.opened;
+  } catch (err) {
+    console.warn("[CriticalAlerts] openSettings failed", err);
+    return false;
+  }
+};
