@@ -28,6 +28,7 @@ export interface CriticalAlertsRequestResult {
 interface CriticalAlertsPlugin {
   checkStatus(): Promise<CriticalAlertsStatus>;
   requestCritical(): Promise<CriticalAlertsRequestResult>;
+  openSettings(): Promise<{ opened: boolean; fallback?: boolean }>;
 }
 
 const NativeCriticalAlerts = registerPlugin<CriticalAlertsPlugin>("CriticalAlerts");
