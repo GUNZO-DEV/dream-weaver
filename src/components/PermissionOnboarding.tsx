@@ -53,11 +53,17 @@ export const PermissionOnboarding = () => {
       const result = await LocalNotifications.requestPermissions();
       const granted = result.display === "granted";
       setStatus((s) => ({ ...s, notifications: granted ? "granted" : "denied" }));
+      if (granted) {
+        toast.success("Notifications allowed", { description: "Alarms can appear on the lock screen." });
+      } else {
+        toast.error("Notifications denied", { description: "Enable later in iOS Settings → Notifications → SleepWell." });
+      }
       // Move to critical step regardless, so users always see the explanation
       setTimeout(() => setStep("critical"), 700);
     } catch (err) {
       console.error("[PermissionOnboarding] notifications request failed", err);
       setStatus((s) => ({ ...s, notifications: "denied" }));
+      toast.error("Notifications request failed", { description: "Please try again from Settings." });
       setTimeout(() => setStep("critical"), 700);
     }
   };
@@ -70,10 +76,16 @@ export const PermissionOnboarding = () => {
       const result = await LocalNotifications.requestPermissions();
       const granted = result.display === "granted";
       setStatus((s) => ({ ...s, critical: granted ? "granted" : "denied" }));
+      if (granted) {
+        toast.success("Critical Alerts allowed", { description: "Alarms will bypass Silent and Do Not Disturb." });
+      } else {
+        toast.error("Critical Alerts denied", { description: "Enable later in Settings → Notifications → SleepWell." });
+      }
       setTimeout(() => setStep("done"), 700);
     } catch (err) {
       console.error("[PermissionOnboarding] critical request failed", err);
       setStatus((s) => ({ ...s, critical: "denied" }));
+      toast.error("Critical Alerts request failed", { description: "Please try again from Settings." });
       setTimeout(() => setStep("done"), 700);
     }
   };
