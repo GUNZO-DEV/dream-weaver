@@ -4,6 +4,8 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Alarm = Tables<'alarms'>;
 
+const ALARM_SOUND_FILE = 'alarm_sound.wav';
+
 // Convert app weekday (0=Sun..6=Sat) to Capacitor weekday (1=Sun..7=Sat)
 const toNativeWeekday = (day: number) => day + 1;
 
@@ -13,6 +15,46 @@ const baseIdFromUuid = (uuid: string): number => {
   // Take first 7 hex chars to keep base id below ~268M, leaves room for *10+day.
   return parseInt(uuid.substring(0, 7), 16) % 100000000;
 };
+
+/**
+ * Verify the bundled alarm sound asset is reachable. On native, the file is
+ * served from the app bundle's web root, so fetch('/alarm_sound.wav') is a
+ * lightweight existence check before we hand the filename to iOS/Android.
+ * Cached per session so we don't refetch on every alarm sync.
+ */
+let _soundAvailability: Promise<{ ok: boolean; error?: string }> | null = null;
+export function checkAlarmSoundAvailable(): Promise<{ ok: boolean; error?: string }> {
+  if (_soundAvailability) return _soundAvailability;
+  _soundAvailability = (async () => {
+    try {
+      const res = await fetch(`/${ALARM_SOUND_FILE}`, { method: 'HEAD' });
+      if (!res.ok) {
+        const err = `HTTP ${res.status} fetching ${ALARM_SOUND_FILE}`;
+        console.warn('[syncAlarmsToNative]', err);
+        return { ok: false, error: err };
+      }
+      return { ok: true };
+    } catch (e: any) {
+      const err = e?.message || String(e);
+      console.warn('[syncAlarmsToNative] alarm sound preflight failed:', err);
+      return { ok: false, error: err };
+    }
+  })();
+  return _soundAvailability;
+}
+
+// Allow callers (e.g. AlarmContext) to surface a user-facing toast on fallback.
+type FallbackListener = (info: { reason: string }) => void;
+const fallbackListeners = new Set<FallbackListener>();
+export function onNativeAlarmSoundFallback(listener: FallbackListener): () => void {
+  fallbackListeners.add(listener);
+  return () => fallbackListeners.delete(listener);
+}
+function emitFallback(reason: string) {
+  fallbackListeners.forEach((l) => {
+    try { l({ reason }); } catch { /* ignore */ }
+  });
+}
 
 /**
  * Cancels every previously-scheduled alarm notification and re-schedules
