@@ -27,6 +27,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
   const { alarms } = useAlarms();
   const {
     scheduleAlarm,
+    cancelAlarm,
     isNative,
     registerAlarmActions,
     addNotificationListeners,
@@ -34,6 +35,10 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
   } = useNativeAlarm();
   const { playAlarm, stopAlarm: stopAlarmSound } = useAlarmSound();
   const { settings, startAlarm } = useAlarmCaptcha();
+
+  // Tracks the in-flight repeating-snooze notification id so we can cancel
+  // the next scheduled ring when the user finally taps Dismiss.
+  const repeatingSnoozeIdRef = useRef<number | null>(null);
 
   const [showAlarm, setShowAlarm] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
