@@ -382,6 +382,9 @@ export const PermissionOnboarding = () => {
                     Without notifications, alarms will only ring while the app is open.
                   </p>
                 )}
+                {(status.notifications !== "granted" || status.critical === "denied") && (
+                  <OpenSettingsButton />
+                )}
                 <Button className="w-full h-11" onClick={finish}>
                   Done
                 </Button>
