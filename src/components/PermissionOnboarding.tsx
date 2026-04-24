@@ -7,14 +7,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { storageGet, storageSet } from "@/lib/capacitorStorage";
 import { toast } from "sonner";
+import {
+  checkCriticalAlertsStatus,
+  requestCriticalAlerts,
+  isCriticalAlertsSupported,
+  type CriticalSetting,
+} from "@/lib/criticalAlerts";
 
 const ONBOARDING_KEY = "permission_onboarding_complete_v1";
 
-type StepStatus = "idle" | "pending" | "granted" | "denied";
+type StepStatus = "idle" | "pending" | "granted" | "denied" | "unsupported";
 
 interface StepState {
   notifications: StepStatus;
   critical: StepStatus;
+  criticalDetail: CriticalSetting | null;
 }
 
 export const PermissionOnboarding = () => {
