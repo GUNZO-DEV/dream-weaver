@@ -344,6 +344,9 @@ export const PermissionOnboarding = () => {
                     ? "Unavailable on this device"
                     : "Allow Critical Alerts"}
                 </Button>
+                {(status.critical === "denied" || status.critical === "unsupported") && (
+                  <OpenSettingsButton label="Enable in iOS Settings" />
+                )}
                 <button onClick={() => setStep("done")} className="w-full text-xs text-muted-foreground hover:text-foreground">
                   Skip this step
                 </button>
