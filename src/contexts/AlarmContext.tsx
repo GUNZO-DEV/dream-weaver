@@ -8,6 +8,7 @@ import { FullScreenAlarm } from "@/components/FullScreenAlarm";
 import { syncAlarmsToStorage } from "@/lib/alarmStorage";
 import { onNativeAlarmSoundFallback } from "@/lib/scheduleNativeAlarms";
 import { supabase } from "@/integrations/supabase/client";
+import { logAlarmTrigger } from "@/lib/alarmDiagnostics";
 import { toast } from "sonner";
 
 interface AlarmContextType {
@@ -169,6 +170,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const testAlarm = useCallback(() => {
+    logAlarmTrigger("test", { label: "Test Alarm" });
     triggerAlarmUI({
       captchaType: settings.captchaType,
       difficulty: settings.captchaDifficulty,
@@ -201,6 +203,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         if (isRepeating) {
           scheduleSnooze({ repeating: true });
         }
+
+        logAlarmTrigger(isRepeating ? "snooze-repeat" : "native-notification", {
+          label: foundAlarm?.label ?? notification.title,
+          alarmId: foundAlarm?.id ?? notifAlarmId,
+          meta: { notificationId: notification.id, hasMatch: !!foundAlarm },
+        });
 
         triggerAlarmUI({
           captchaType: (foundAlarm?.captcha_type as CaptchaType) || "math",
@@ -287,6 +295,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           const trigger = payload.new as any;
           if (trigger.dismissed) return;
 
+          logAlarmTrigger("realtime", {
+            label: trigger.label,
+            alarmId: trigger.alarm_id,
+            meta: { triggerId: trigger.id, triggeredAt: trigger.triggered_at },
+          });
+
           triggerAlarmUI({
             captchaType: (trigger.captcha_type as CaptchaType) || "math",
             difficulty: trigger.captcha_difficulty || 2,
@@ -321,6 +335,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         if (!days.includes(currentDay)) return;
         // Only fire once per minute
         if (now.getSeconds() > 1) return;
+
+        logAlarmTrigger("web-interval", {
+          label: alarm.label,
+          alarmId: alarm.id,
+          meta: { time: alarm.time, day: currentDay },
+        });
 
         triggerAlarmUI({
           captchaType: (alarm.captcha_type as CaptchaType) || "math",
