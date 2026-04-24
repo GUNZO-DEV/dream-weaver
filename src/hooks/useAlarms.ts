@@ -119,6 +119,13 @@ export const useAlarms = () => {
     },
   });
 
+  // Whenever the alarm list changes, re-sync iOS/Android local notifications.
+  // This is what makes alarms ring when the app is fully closed.
+  useEffect(() => {
+    if (!alarms) return;
+    syncAlarmsToNative(alarms);
+  }, [alarms]);
+
   return {
     alarms,
     isLoading,
