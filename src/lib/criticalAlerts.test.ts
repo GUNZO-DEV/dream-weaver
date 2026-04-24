@@ -1,26 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// We mock @capacitor/core so the module under test sees a controllable
-// platform + plugin. registerPlugin is mocked to return whatever the
-// current __mockPlugin holds, letting individual tests inject behavior.
-let mockPlatform: "ios" | "android" | "web" = "ios";
-let mockIsNative = true;
-let mockPlugin: {
-  checkStatus: ReturnType<typeof vi.fn>;
-  requestCritical: ReturnType<typeof vi.fn>;
-  openSettings: ReturnType<typeof vi.fn>;
-} = {
-  checkStatus: vi.fn(),
-  requestCritical: vi.fn(),
-  openSettings: vi.fn(),
-};
+// vi.mock factories run before module-level `let`s are initialized, so we
+// declare shared mock state through vi.hoisted to make it available early.
+const mocks = vi.hoisted(() => {
+  const state: {
+    platform: "ios" | "android" | "web";
+    isNative: boolean;
+    plugin: {
+      checkStatus: ReturnType<typeof import("vitest").vi.fn>;
+      requestCritical: ReturnType<typeof import("vitest").vi.fn>;
+      openSettings: ReturnType<typeof import("vitest").vi.fn>;
+    };
+  } = {
+    platform: "ios",
+    isNative: true,
+    plugin: {
+      checkStatus: (globalThis as any).vi?.fn?.() ?? (() => {}),
+      requestCritical: (globalThis as any).vi?.fn?.() ?? (() => {}),
+      openSettings: (globalThis as any).vi?.fn?.() ?? (() => {}),
+    },
+  };
+  return state;
+});
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: {
-    isNativePlatform: () => mockIsNative,
-    getPlatform: () => mockPlatform,
+    isNativePlatform: () => mocks.isNative,
+    getPlatform: () => mocks.platform,
   },
-  registerPlugin: () => mockPlugin,
+  registerPlugin: () => mocks.plugin,
 }));
 
 // Import AFTER the mock is registered so the module wires up to it.
@@ -32,11 +40,9 @@ import {
 } from "@/lib/criticalAlerts";
 
 const resetPluginMocks = () => {
-  mockPlugin = {
-    checkStatus: vi.fn(),
-    requestCritical: vi.fn(),
-    openSettings: vi.fn(),
-  };
+  mocks.plugin.checkStatus = vi.fn();
+  mocks.plugin.requestCritical = vi.fn();
+  mocks.plugin.openSettings = vi.fn();
 };
 
 describe("criticalAlerts wrapper", () => {
