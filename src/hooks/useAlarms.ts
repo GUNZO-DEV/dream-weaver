@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase as webSupabase } from '@/integrations/supabase/client';
  import { nativeSupabase } from '@/lib/supabaseClient';
  import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { syncAlarmsToNative } from '@/lib/scheduleNativeAlarms';
 
 type Alarm = Tables<'alarms'>;
 type AlarmInsert = TablesInsert<'alarms'>;
@@ -116,6 +118,13 @@ export const useAlarms = () => {
       queryClient.invalidateQueries({ queryKey: ['alarms'] });
     },
   });
+
+  // Whenever the alarm list changes, re-sync iOS/Android local notifications.
+  // This is what makes alarms ring when the app is fully closed.
+  useEffect(() => {
+    if (!alarms) return;
+    syncAlarmsToNative(alarms);
+  }, [alarms]);
 
   return {
     alarms,

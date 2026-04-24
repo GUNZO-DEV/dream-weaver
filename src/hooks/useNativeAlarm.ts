@@ -196,8 +196,9 @@ export const useNativeAlarm = () => {
       if (isIOS) {
         notification.threadIdentifier = 'alarms';
         notification.summaryArgument = title;
-        // timeSensitive works without special entitlement (unlike critical)
-        notification.interruptionLevel = 'timeSensitive';
+        // 'critical' bypasses silent/DND when the entitlement is granted.
+        // Falls back to 'timeSensitive' behavior automatically if not.
+        notification.interruptionLevel = 'critical';
       }
 
       return notification;
