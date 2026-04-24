@@ -67,6 +67,8 @@ const AppRoutes = () => {
       <Route path="/alarm" element={<ProtectedRoute><Alarm /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/dreams" element={<ProtectedRoute><Dreams /></ProtectedRoute>} />
+      {/* Hidden diagnostics screen — not linked from nav. Direct URL only. */}
+      <Route path="/diagnostics" element={<ProtectedRoute><Diagnostics /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
