@@ -76,22 +76,42 @@ export const PermissionOnboarding = () => {
   };
 
   const requestCritical = async () => {
+    // Skip cleanly on platforms without the entitlement (Android / web)
+    if (!isCriticalAlertsSupported()) {
+      setStatus((s) => ({ ...s, critical: "unsupported", criticalDetail: "notSupported" }));
+      toast("Critical Alerts unavailable", {
+        description: "This entitlement is iOS-only and not active on this device.",
+      });
+      setTimeout(() => setStep("done"), 700);
+      return;
+    }
+
     setStatus((s) => ({ ...s, critical: "pending" }));
     try {
-      // iOS surfaces a separate prompt for Critical Alerts when the entitlement
-      // is granted to the app. We re-request permissions so the OS can show it.
-      const result = await LocalNotifications.requestPermissions();
-      const granted = result.display === "granted";
-      setStatus((s) => ({ ...s, critical: granted ? "granted" : "denied" }));
-      if (granted) {
-        toast.success("Critical Alerts allowed", { description: "Alarms will bypass Silent and Do Not Disturb." });
+      const result = await requestCriticalAlerts();
+      const isEnabled = result.critical === "enabled";
+      const isUnsupported = result.critical === "notSupported";
+
+      if (isUnsupported) {
+        setStatus((s) => ({ ...s, critical: "unsupported", criticalDetail: result.critical }));
+        toast.error("Critical Alerts entitlement missing", {
+          description: "Add the Critical Alerts entitlement in Xcode and rebuild the app.",
+        });
+      } else if (isEnabled) {
+        setStatus((s) => ({ ...s, critical: "granted", criticalDetail: result.critical }));
+        toast.success("Critical Alerts enabled", {
+          description: "Alarms will bypass Silent, Do Not Disturb, and Focus.",
+        });
       } else {
-        toast.error("Critical Alerts denied", { description: "Enable later in Settings → Notifications → SleepWell." });
+        setStatus((s) => ({ ...s, critical: "denied", criticalDetail: result.critical }));
+        toast.error("Critical Alerts not enabled", {
+          description: "Enable in Settings → Notifications → SleepWell → Critical Alerts.",
+        });
       }
       setTimeout(() => setStep("done"), 700);
     } catch (err) {
       console.error("[PermissionOnboarding] critical request failed", err);
-      setStatus((s) => ({ ...s, critical: "denied" }));
+      setStatus((s) => ({ ...s, critical: "denied", criticalDetail: "unknown" }));
       toast.error("Critical Alerts request failed", { description: "Please try again from Settings." });
       setTimeout(() => setStep("done"), 700);
     }
