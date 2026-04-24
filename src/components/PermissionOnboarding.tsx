@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, BellRing, CheckCircle2, XCircle, Loader2, ShieldAlert } from "lucide-react";
+import { Bell, BellRing, CheckCircle2, XCircle, Loader2, ShieldAlert, Settings as SettingsIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { storageGet, storageSet } from "@/lib/capacitorStorage";
@@ -11,6 +11,7 @@ import {
   checkCriticalAlertsStatus,
   requestCriticalAlerts,
   isCriticalAlertsSupported,
+  openIosNotificationSettings,
   type CriticalSetting,
 } from "@/lib/criticalAlerts";
 
@@ -143,6 +144,27 @@ export const PermissionOnboarding = () => {
     setOpen(false);
   };
 
+  const openSettings = async () => {
+    const opened = await openIosNotificationSettings();
+    if (!opened) {
+      toast.error("Couldn't open Settings", {
+        description: "Open the iOS Settings app manually and find SleepWell → Notifications.",
+      });
+    }
+  };
+
+  const OpenSettingsButton = ({ label = "Open iOS Settings" }: { label?: string }) => (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full h-11 gap-2"
+      onClick={openSettings}
+    >
+      <SettingsIcon size={16} />
+      {label}
+    </Button>
+  );
+
   const StatusBadge = ({ value, label }: { value: StepStatus; label?: string }) => {
     if (value === "granted") {
       return (
@@ -257,6 +279,7 @@ export const PermissionOnboarding = () => {
                     </p>
                   )}
                 </div>
+                {status.notifications === "denied" && <OpenSettingsButton label="Enable in iOS Settings" />}
                 <Button
                   className="w-full h-11"
                   variant="secondary"
@@ -321,6 +344,9 @@ export const PermissionOnboarding = () => {
                     ? "Unavailable on this device"
                     : "Allow Critical Alerts"}
                 </Button>
+                {(status.critical === "denied" || status.critical === "unsupported") && (
+                  <OpenSettingsButton label="Enable in iOS Settings" />
+                )}
                 <button onClick={() => setStep("done")} className="w-full text-xs text-muted-foreground hover:text-foreground">
                   Skip this step
                 </button>
@@ -355,6 +381,9 @@ export const PermissionOnboarding = () => {
                   <p className="text-xs text-muted-foreground">
                     Without notifications, alarms will only ring while the app is open.
                   </p>
+                )}
+                {(status.notifications !== "granted" || status.critical === "denied") && (
+                  <OpenSettingsButton />
                 )}
                 <Button className="w-full h-11" onClick={finish}>
                   Done

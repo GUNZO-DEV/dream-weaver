@@ -1,5 +1,6 @@
 import Foundation
 import Capacitor
+import UIKit
 import UserNotifications
 
 // Custom Capacitor plugin that exposes the iOS-specific Critical Alerts
@@ -40,6 +41,51 @@ public class CriticalAlertsPlugin: CAPPlugin {
                     "critical": Self.settingString(settings.criticalAlertSetting)
                 ]
                 call.resolve(result)
+            }
+        }
+    }
+
+    /// Opens the iOS Settings app on this app's notification settings page
+    /// (or the app settings page on older iOS versions). This is the only
+    /// way to flip Critical Alerts back on once the user has denied them.
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            // Prefer the dedicated notification settings deep link when available
+            let urlString: String
+            if #available(iOS 16.0, *) {
+                urlString = UIApplication.openNotificationSettingsURLString
+            } else if #available(iOS 15.4, *) {
+                urlString = UIApplicationOpenNotificationSettingsURLString
+            } else {
+                urlString = UIApplication.openSettingsURLString
+            }
+
+            guard let url = URL(string: urlString) else {
+                call.reject("Could not build settings URL")
+                return
+            }
+
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url, options: [:]) { success in
+                    if success {
+                        call.resolve(["opened": true])
+                    } else {
+                        // Fall back to generic app settings if the deep link refuses
+                        if let fallback = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(fallback, options: [:]) { ok in
+                                call.resolve(["opened": ok, "fallback": true])
+                            }
+                        } else {
+                            call.resolve(["opened": false])
+                        }
+                    }
+                }
+            } else if let fallback = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(fallback, options: [:]) { ok in
+                    call.resolve(["opened": ok, "fallback": true])
+                }
+            } else {
+                call.resolve(["opened": false])
             }
         }
     }

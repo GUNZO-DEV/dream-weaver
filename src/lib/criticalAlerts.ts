@@ -28,6 +28,7 @@ export interface CriticalAlertsRequestResult {
 interface CriticalAlertsPlugin {
   checkStatus(): Promise<CriticalAlertsStatus>;
   requestCritical(): Promise<CriticalAlertsRequestResult>;
+  openSettings(): Promise<{ opened: boolean; fallback?: boolean }>;
 }
 
 const NativeCriticalAlerts = registerPlugin<CriticalAlertsPlugin>("CriticalAlerts");
@@ -71,5 +72,20 @@ export const requestCriticalAlerts = async (): Promise<CriticalAlertsRequestResu
   } catch (err) {
     console.warn("[CriticalAlerts] requestCritical failed", err);
     return { granted: false, authorization: "unknown", critical: "unknown" };
+  }
+};
+
+/**
+ * Opens the iOS Settings app, deep-linking to this app's notification
+ * settings page when possible. Returns false on unsupported platforms.
+ */
+export const openIosNotificationSettings = async (): Promise<boolean> => {
+  if (!isCriticalAlertsSupported()) return false;
+  try {
+    const result = await NativeCriticalAlerts.openSettings();
+    return !!result?.opened;
+  } catch (err) {
+    console.warn("[CriticalAlerts] openSettings failed", err);
+    return false;
   }
 };
