@@ -94,6 +94,9 @@ export const getDeviceContext = (): Promise<DeviceContext> => {
   if (contextPromise) return contextPromise;
   contextPromise = resolveDeviceContext().then((ctx) => {
     contextCache = ctx;
+    // Back-patch any cached entries that were logged before context resolved
+    // (including entries loaded from a previous session's persisted log).
+    void backPatchMissingContext(ctx);
     return ctx;
   });
   return contextPromise;
