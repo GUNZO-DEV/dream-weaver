@@ -37,6 +37,9 @@ const Diagnostics = () => {
   const [loading, setLoading] = useState(true);
   const [device, setDevice] = useState<DeviceContext | null>(null);
   const [contextResolving, setContextResolving] = useState(true);
+  const [contextResolvedAt, setContextResolvedAt] = useState<number | null>(
+    getContextResolvedAt()
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -55,9 +58,13 @@ const Diagnostics = () => {
     const unsub = subscribeAlarmDiagnostics((next) => {
       if (mounted) setEntries(next);
     });
+    const unsubCtx = subscribeContextResolved((at) => {
+      if (mounted) setContextResolvedAt(at);
+    });
     return () => {
       mounted = false;
       unsub();
+      unsubCtx();
     };
   }, []);
 
