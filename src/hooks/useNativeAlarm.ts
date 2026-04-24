@@ -8,6 +8,7 @@ export interface AlarmNotification {
   body: string;
   scheduledAt: Date;
   sound?: string;
+  extra?: Record<string, any>;
 }
 
 export const useNativeAlarm = () => {
@@ -53,6 +54,11 @@ export const useNativeAlarm = () => {
                 foreground: false,
               },
               {
+                id: 'snooze_repeat',
+                title: 'Snooze (repeat)',
+                foreground: false,
+              },
+              {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
@@ -91,7 +97,7 @@ export const useNativeAlarm = () => {
           schedule: { at: alarm.scheduledAt },
           sound: 'alarm_sound.wav',
           actionTypeId: 'ALARM_ACTIONS',
-          extra: { alarmId: alarm.id },
+          extra: { alarmId: alarm.id, ...(alarm.extra || {}) },
           channelId: 'alarm_channel',
           attachments: undefined,
           threadIdentifier: 'alarms',
@@ -233,6 +239,11 @@ export const useNativeAlarm = () => {
               {
                 id: 'snooze',
                 title: 'Snooze (5 min)',
+                foreground: false,
+              },
+              {
+                id: 'snooze_repeat',
+                title: 'Snooze (repeat)',
                 foreground: false,
               },
               {
