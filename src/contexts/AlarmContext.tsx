@@ -211,6 +211,17 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [alarms, isNative]);
 
+  // Surface a user-facing toast whenever the native scheduler had to fall
+  // back from the bundled alarm sound to the system default.
+  useEffect(() => {
+    if (!isNative) return;
+    const unsubscribe = onNativeAlarmSoundFallback(({ reason }) => {
+      console.warn("[AlarmProvider] Native alarm sound fallback:", reason);
+      toast.warning("Alarm sound fallback", { description: reason });
+    });
+    return unsubscribe;
+  }, [isNative]);
+
   // Server-side alarm triggers via Realtime (works even when app was killed)
   useEffect(() => {
     if (!user) return;
