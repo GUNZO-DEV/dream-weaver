@@ -29,17 +29,34 @@ export const PermissionOnboarding = () => {
   const [step, setStep] = useState<"intro" | "notifications" | "critical" | "done">("intro");
   const [status, setStatus] = useState<StepState>({ notifications: "idle", critical: "idle", criticalDetail: null });
 
-  // Decide whether to show the onboarding on first launch (native only)
+  // Decide whether to show the onboarding on first launch (native only).
+  // We also pre-load the real Critical Alerts entitlement state from iOS so
+  // the UI reflects the actual status, not just the generic notification flag.
   useEffect(() => {
     let cancelled = false;
     const init = async () => {
       if (!Capacitor.isNativePlatform()) return;
       try {
+        // Pre-fill critical status from native side regardless of onboarding state
+        const critical = await checkCriticalAlertsStatus();
+        if (!cancelled) {
+          setStatus((s) => ({
+            ...s,
+            criticalDetail: critical.critical,
+            critical:
+              critical.critical === "enabled"
+                ? "granted"
+                : critical.critical === "notSupported"
+                ? "unsupported"
+                : s.critical,
+          }));
+        }
+
         const seen = await storageGet(ONBOARDING_KEY);
         if (seen === "1") return;
-        // If permission is already granted, mark complete silently
+        // If display + critical are both already in a final state, mark complete silently
         const current = await LocalNotifications.checkPermissions();
-        if (current.display === "granted") {
+        if (current.display === "granted" && critical.critical !== "notDetermined") {
           await storageSet(ONBOARDING_KEY, "1");
           return;
         }
