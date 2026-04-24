@@ -88,7 +88,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     if (navigator.vibrate) navigator.vibrate(0);
     setShowAlarm(false);
     setActiveAlarmConfig(null);
-  }, [stopAlarmSound]);
+    // Cancel any pending repeating snooze so the cycle stops.
+    if (repeatingSnoozeIdRef.current !== null) {
+      void cancelAlarm(repeatingSnoozeIdRef.current);
+      repeatingSnoozeIdRef.current = null;
+    }
+  }, [stopAlarmSound, cancelAlarm]);
 
   const handleDismiss = useCallback(() => {
     stopEverything();
@@ -109,6 +114,9 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         sound: "alarm_sound.wav",
         extra: { repeating: opts.repeating },
       });
+      if (opts.repeating) {
+        repeatingSnoozeIdRef.current = snoozeId;
+      }
     },
     [scheduleAlarm]
   );
