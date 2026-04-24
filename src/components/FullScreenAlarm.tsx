@@ -258,21 +258,25 @@ export const FullScreenAlarm = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
           >
-            {/* Snooze */}
+            {/* Snooze — large, instant feedback, no captcha gate */}
             <Button
-              onClick={() => { triggerHaptic([30, 50, 30]); onSnooze(); }}
+              onPointerDown={() => triggerHaptic([30, 50, 30])}
+              onClick={onSnooze}
               variant="secondary"
-              className="w-full h-16 text-lg font-semibold rounded-2xl bg-secondary hover:bg-secondary/80"
+              className="w-full h-20 text-xl font-semibold rounded-2xl bg-secondary hover:bg-secondary/80 active:scale-[0.98] transition-transform touch-manipulation"
+              aria-label="Snooze alarm for 5 minutes"
             >
-              <Moon size={20} className="mr-2" />
+              <Moon size={24} className="mr-2" />
               Snooze (5 min)
             </Button>
 
-            {/* Dismiss / open captcha */}
+            {/* Dismiss — opens captcha or dismisses immediately if disabled */}
             <Button
+              onPointerDown={() => triggerHaptic(50)}
               onClick={handleDismissPress}
               variant="destructive"
-              className="w-full h-16 text-lg font-semibold rounded-2xl"
+              className="w-full h-20 text-xl font-semibold rounded-2xl active:scale-[0.98] transition-transform touch-manipulation"
+              aria-label="Dismiss alarm"
             >
               Dismiss Alarm
             </Button>
