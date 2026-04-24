@@ -342,6 +342,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         <FullScreenAlarm
           onDismiss={handleDismiss}
           onSnooze={handleSnooze}
+          onSnoozeRepeat={handleSnoozeRepeat}
           alarmLabel={activeAlarmConfig.label}
           captchaType={activeAlarmConfig.captchaType}
           difficulty={activeAlarmConfig.difficulty}
