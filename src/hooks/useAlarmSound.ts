@@ -153,137 +153,153 @@
      }
    }, []);
  
-   const playAlarm = useCallback(async (
-     soundType: AlarmSoundType = 'sunrise',
-     gradualVolume: boolean = true,
-     vibration: boolean = true
-    ): Promise<boolean> => {
-     try {
-       console.log('[AlarmSound] Playing alarm:', soundType, { gradualVolume, vibration });
-       
-       // Stop any existing alarm
-       stopAlarm();
-       
-       const ctx = await resumeContext();
-        
-        // Double-check context is running
-        if (ctx.state !== 'running') {
-          console.warn('[AlarmSound] AudioContext not running after resume, state:', ctx.state);
-          // Try to resume again with user gesture simulation
-          await ctx.resume();
+  // Internal: actually build the Web Audio graph for a given config.
+  // Returns true on success, false on failure (caller decides on fallback).
+  const playWithConfig = useCallback(async (
+    soundType: AlarmSoundType,
+    config: AlarmSoundConfig,
+    gradualVolume: boolean,
+    vibration: boolean,
+  ): Promise<boolean> => {
+    try {
+      console.log('[AlarmSound] Playing alarm:', soundType, { gradualVolume, vibration });
+
+      stopAlarm();
+
+      const ctx = await resumeContext();
+
+      if (ctx.state !== 'running') {
+        console.warn('[AlarmSound] AudioContext not running after resume, state:', ctx.state);
+        await ctx.resume();
+      }
+      if (ctx.state !== 'running') {
+        throw new Error(`AudioContext stuck in state '${ctx.state}'`);
+      }
+
+      isPlayingRef.current = true;
+
+      const oscillator = ctx.createOscillator();
+      oscillator.type = config.type;
+      oscillator.frequency.value = config.frequency;
+      oscillatorRef.current = oscillator;
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = gradualVolume ? 0.1 : 0.5;
+      gainNodeRef.current = gainNode;
+
+      if (config.modulationFreq && config.modulationDepth) {
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = config.modulationFreq;
+        lfoRef.current = lfo;
+
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = config.modulationDepth;
+        lfoGainRef.current = lfoGain;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(oscillator.frequency);
+        lfo.start();
+      }
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.start();
+
+      console.log('[AlarmSound] Oscillator started');
+
+      if (vibration && Capacitor.isNativePlatform()) {
+        const vibratePattern = () => {
+          if (!isPlayingRef.current) return;
+          if (navigator.vibrate) {
+            navigator.vibrate([500, 200, 500, 200, 500, 500]);
+          }
+          setTimeout(vibratePattern, 2500);
+        };
+        vibratePattern();
+      }
+
+      let patternIndex = 0;
+      let isOn = true;
+
+      const runPattern = () => {
+        if (!isPlayingRef.current) return;
+
+        const duration = config.pattern[patternIndex % config.pattern.length];
+
+        if (gainNodeRef.current) {
+          gainNodeRef.current.gain.value = isOn ? (gradualVolume ? gainNodeRef.current.gain.value : 0.3) : 0;
         }
-        
-       const config = ALARM_SOUNDS[soundType] || ALARM_SOUNDS.sunrise;
-       
-       isPlayingRef.current = true;
- 
-       // Create main oscillator
-       const oscillator = ctx.createOscillator();
-       oscillator.type = config.type;
-       oscillator.frequency.value = config.frequency;
-       oscillatorRef.current = oscillator;
- 
-       // Create gain node for volume control
-       const gainNode = ctx.createGain();
-        // Start louder to ensure it's audible
-        gainNode.gain.value = gradualVolume ? 0.1 : 0.5;
-       gainNodeRef.current = gainNode;
- 
-       // Add modulation if configured
-       if (config.modulationFreq && config.modulationDepth) {
-         const lfo = ctx.createOscillator();
-         lfo.frequency.value = config.modulationFreq;
-         lfoRef.current = lfo;
- 
-         const lfoGain = ctx.createGain();
-         lfoGain.gain.value = config.modulationDepth;
-         lfoGainRef.current = lfoGain;
- 
-         lfo.connect(lfoGain);
-         lfoGain.connect(oscillator.frequency);
-         lfo.start();
-       }
- 
-       // Connect and start
-       oscillator.connect(gainNode);
-       gainNode.connect(ctx.destination);
-       oscillator.start();
- 
-       console.log('[AlarmSound] Oscillator started');
-        
-        // On native, also try to vibrate
-        if (vibration && Capacitor.isNativePlatform()) {
-          // Start a vibration pattern that repeats
-          const vibratePattern = () => {
-            if (!isPlayingRef.current) return;
-            if (navigator.vibrate) {
-              navigator.vibrate([500, 200, 500, 200, 500, 500]);
+
+        if (isOn && vibration && Capacitor.isNativePlatform() && navigator.vibrate) {
+          navigator.vibrate(duration);
+        }
+
+        isOn = !isOn;
+        patternIndex++;
+
+        patternIntervalRef.current = setTimeout(runPattern, duration);
+      };
+
+      runPattern();
+
+      if (gradualVolume) {
+        let currentVolume = 0.1;
+        const targetVolume = 0.6;
+        const steps = 30;
+        const interval = 1000;
+        const volumeStep = (targetVolume - currentVolume) / steps;
+
+        gradualVolumeIntervalRef.current = setInterval(() => {
+          if (!isPlayingRef.current) {
+            if (gradualVolumeIntervalRef.current) {
+              clearInterval(gradualVolumeIntervalRef.current);
             }
-            setTimeout(vibratePattern, 2500);
-          };
-          vibratePattern();
-        }
- 
-       // Implement pattern (on/off beeping)
-       let patternIndex = 0;
-       let isOn = true;
- 
-       const runPattern = () => {
-         if (!isPlayingRef.current) return;
- 
-         const duration = config.pattern[patternIndex % config.pattern.length];
-         
-         if (gainNodeRef.current) {
-           gainNodeRef.current.gain.value = isOn ? (gradualVolume ? gainNodeRef.current.gain.value : 0.3) : 0;
-         }
- 
-         // Vibrate on 'on' phase if enabled
-         if (isOn && vibration && Capacitor.isNativePlatform() && navigator.vibrate) {
-           navigator.vibrate(duration);
-         }
- 
-         isOn = !isOn;
-         patternIndex++;
- 
-         patternIntervalRef.current = setTimeout(runPattern, duration);
-       };
- 
-       runPattern();
- 
-       // Gradual volume increase
-       if (gradualVolume) {
-          let currentVolume = 0.1;
-          const targetVolume = 0.6;
-         const steps = 30;
-          const interval = 1000; // Increase every 1 second for faster ramp
-         const volumeStep = (targetVolume - currentVolume) / steps;
- 
-         gradualVolumeIntervalRef.current = setInterval(() => {
-           if (!isPlayingRef.current) {
-             if (gradualVolumeIntervalRef.current) {
-               clearInterval(gradualVolumeIntervalRef.current);
-             }
-             return;
-           }
- 
-           currentVolume = Math.min(currentVolume + volumeStep, targetVolume);
-           if (gainNodeRef.current) {
-             // Only update when in 'on' phase
-             gainNodeRef.current.gain.value = Math.min(currentVolume, targetVolume);
-           }
- 
-           if (currentVolume >= targetVolume && gradualVolumeIntervalRef.current) {
-             clearInterval(gradualVolumeIntervalRef.current);
-           }
-         }, interval);
-       }
- 
-       return true;
-     } catch (error) {
-       console.error('[AlarmSound] Failed to play alarm:', error);
-       return false;
-     }
-   }, [stopAlarm, resumeContext]);
+            return;
+          }
+
+          currentVolume = Math.min(currentVolume + volumeStep, targetVolume);
+          if (gainNodeRef.current) {
+            gainNodeRef.current.gain.value = Math.min(currentVolume, targetVolume);
+          }
+
+          if (currentVolume >= targetVolume && gradualVolumeIntervalRef.current) {
+            clearInterval(gradualVolumeIntervalRef.current);
+          }
+        }, interval);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[AlarmSound] playWithConfig failed for', soundType, error);
+      return false;
+    }
+  }, [stopAlarm, resumeContext]);
+
+  /**
+   * Play the alarm with the requested sound. If it fails, automatically
+   * fall back to the simplest synthesized 'classic' beeper.
+   */
+  const playAlarm = useCallback(async (
+    soundType: AlarmSoundType = 'sunrise',
+    gradualVolume: boolean = true,
+    vibration: boolean = true,
+  ): Promise<{ ok: boolean; fellBack: boolean; reason?: string }> => {
+    const primaryConfig = ALARM_SOUNDS[soundType] || ALARM_SOUNDS.sunrise;
+    const ok = await playWithConfig(soundType, primaryConfig, gradualVolume, vibration);
+    if (ok) return { ok: true, fellBack: false };
+
+    const reason = `Could not play "${soundType}" sound — using fallback beeper`;
+    console.warn('[AlarmSound]', reason);
+    const fallbackOk = await playWithConfig('classic', ALARM_SOUNDS.classic, false, vibration);
+    if (fallbackOk) {
+      return { ok: true, fellBack: true, reason };
+    }
+    return {
+      ok: false,
+      fellBack: true,
+      reason: 'Both primary and fallback alarm sounds failed to play',
+    };
+  }, [playWithConfig]);
  
    // Preview a sound (short play)
    const previewSound = useCallback(async (soundType: AlarmSoundType) => {
