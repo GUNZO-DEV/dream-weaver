@@ -238,8 +238,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     alarms,
     getNotificationId,
     triggerAlarmUI,
-    handleSnooze,
-    handleDismiss,
+    scheduleSnooze,
+    stopEverything,
   ]);
 
   // Sync alarms to persistent storage for Background Runner
