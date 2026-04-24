@@ -269,19 +269,40 @@ export const PermissionOnboarding = () => {
                       <p className="text-xs text-muted-foreground">Bypass Silent, Do Not Disturb, and Focus modes.</p>
                     </div>
                   </div>
-                  <StatusBadge value={status.critical} />
+                  <StatusBadge
+                    value={status.critical}
+                    label={status.critical === "granted" ? "Entitlement active" : undefined}
+                  />
                   {status.critical === "denied" && (
                     <p className="text-xs text-muted-foreground">
-                      Enable later in iOS Settings → Notifications → SleepWell → Critical Alerts.
+                      iOS notifications are on, but Critical Alerts is off. Enable it in Settings → Notifications → SleepWell → Critical Alerts.
+                    </p>
+                  )}
+                  {status.critical === "unsupported" && (
+                    <p className="text-xs text-muted-foreground">
+                      The Critical Alerts entitlement is not enabled in this build. Add it in Xcode (Signing & Capabilities) and rebuild.
+                    </p>
+                  )}
+                  {status.critical === "granted" && (
+                    <p className="text-xs text-muted-foreground">
+                      Verified directly with iOS — alarms can override Silent and Focus modes.
                     </p>
                   )}
                 </div>
                 <Button
                   className="w-full h-11"
                   onClick={requestCritical}
-                  disabled={status.critical === "pending" || status.critical === "granted"}
+                  disabled={
+                    status.critical === "pending" ||
+                    status.critical === "granted" ||
+                    status.critical === "unsupported"
+                  }
                 >
-                  {status.critical === "granted" ? "Already enabled" : "Allow Critical Alerts"}
+                  {status.critical === "granted"
+                    ? "Already enabled"
+                    : status.critical === "unsupported"
+                    ? "Unavailable on this device"
+                    : "Allow Critical Alerts"}
                 </Button>
                 <button onClick={() => setStep("done")} className="w-full text-xs text-muted-foreground hover:text-foreground">
                   Skip this step
