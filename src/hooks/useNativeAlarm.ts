@@ -97,7 +97,7 @@ export const useNativeAlarm = () => {
           schedule: { at: alarm.scheduledAt },
           sound: 'alarm_sound.wav',
           actionTypeId: 'ALARM_ACTIONS',
-          extra: { alarmId: alarm.id },
+          extra: { alarmId: alarm.id, ...(alarm.extra || {}) },
           channelId: 'alarm_channel',
           attachments: undefined,
           threadIdentifier: 'alarms',
