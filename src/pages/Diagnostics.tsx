@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Trash2, Bell, Radio, Clock, FlaskConical, RefreshCw } from "lucide-react";
+import { ArrowLeft, Trash2, Bell, Radio, Clock, FlaskConical, RefreshCw, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   type AlarmDiagnosticEntry,
   type AlarmTriggerSource,
+  type DeviceContext,
   clearAlarmDiagnostics,
+  getDeviceContext,
   loadAlarmDiagnostics,
   subscribeAlarmDiagnostics,
 } from "@/lib/alarmDiagnostics";
@@ -31,6 +33,7 @@ const formatTimestamp = (ms: number) => {
 const Diagnostics = () => {
   const [entries, setEntries] = useState<AlarmDiagnosticEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [device, setDevice] = useState<DeviceContext | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -39,6 +42,9 @@ const Diagnostics = () => {
         setEntries(initial);
         setLoading(false);
       }
+    });
+    void getDeviceContext().then((ctx) => {
+      if (mounted) setDevice(ctx);
     });
     const unsub = subscribeAlarmDiagnostics((next) => {
       if (mounted) setEntries(next);
@@ -82,6 +88,45 @@ const Diagnostics = () => {
           </Button>
         </div>
       </header>
+
+      <section className="px-4 pt-6">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          This device
+        </p>
+        <Card className="p-4 bg-card/60 backdrop-blur border-border">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 rounded-lg p-2 bg-primary/15 text-primary">
+              <Smartphone size={18} />
+            </div>
+            <div className="min-w-0 flex-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted-foreground">Platform</span>
+              <span className="font-medium text-right truncate">{device?.platform ?? "—"}</span>
+
+              <span className="text-muted-foreground">OS</span>
+              <span className="font-medium text-right truncate">{device?.osVersion ?? "—"}</span>
+
+              <span className="text-muted-foreground">Device</span>
+              <span className="font-medium text-right truncate">
+                {device?.manufacturer ? `${device.manufacturer} ${device.model ?? ""}` : device?.model ?? "—"}
+              </span>
+
+              <span className="text-muted-foreground">App</span>
+              <span className="font-medium text-right truncate tabular-nums">
+                {device?.appVersion ? `${device.appVersion} (${device.appBuild ?? "?"})` : "—"}
+              </span>
+
+              <span className="text-muted-foreground">WebView</span>
+              <span className="font-medium text-right truncate">{device?.webViewVersion ?? "—"}</span>
+
+              <span className="text-muted-foreground">Time zone</span>
+              <span className="font-medium text-right truncate">{device?.timezone ?? "—"}</span>
+
+              <span className="text-muted-foreground">Locale</span>
+              <span className="font-medium text-right truncate">{device?.locale ?? "—"}</span>
+            </div>
+          </div>
+        </Card>
+      </section>
 
       <section className="px-4 pt-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
@@ -153,6 +198,28 @@ const Diagnostics = () => {
                     <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                       {formatTimestamp(entry.timestamp)}
                     </p>
+                    {entry.context && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {entry.context.platform}
+                          {entry.context.osVersion ? ` ${entry.context.osVersion}` : ""}
+                        </Badge>
+                        {entry.context.model && (
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {entry.context.model}
+                          </Badge>
+                        )}
+                        {entry.context.appVersion && (
+                          <Badge variant="secondary" className="text-[10px] font-normal tabular-nums">
+                            v{entry.context.appVersion}
+                            {entry.context.appBuild ? ` (${entry.context.appBuild})` : ""}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {entry.context.timezone}
+                        </Badge>
+                      </div>
+                    )}
                     {(entry.alarmId || entry.meta) && (
                       <pre className="text-[10px] text-muted-foreground/80 mt-2 whitespace-pre-wrap break-all font-mono">
                         {JSON.stringify(

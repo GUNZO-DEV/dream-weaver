@@ -3,6 +3,9 @@
 // Capped to MAX_ENTRIES so it never grows unbounded.
 
 import { Preferences } from "@capacitor/preferences";
+import { Device } from "@capacitor/device";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 
 export type AlarmTriggerSource =
   | "native-notification" // LocalNotifications listener fired
@@ -11,6 +14,18 @@ export type AlarmTriggerSource =
   | "test"                // Manual Test Alarm button
   | "snooze-repeat";      // Auto-rescheduled by repeating snooze cycle
 
+export interface DeviceContext {
+  platform: string;       // 'ios' | 'android' | 'web'
+  osVersion?: string;
+  model?: string;         // e.g. 'iPhone15,3'
+  manufacturer?: string;
+  appVersion?: string;    // e.g. '1.0.0'
+  appBuild?: string;      // e.g. '42'
+  webViewVersion?: string;
+  timezone: string;       // IANA, e.g. 'Europe/Paris'
+  locale?: string;
+}
+
 export interface AlarmDiagnosticEntry {
   id: string;
   timestamp: number; // epoch ms
@@ -18,10 +33,74 @@ export interface AlarmDiagnosticEntry {
   label?: string;
   alarmId?: string | number;
   meta?: Record<string, unknown>;
+  context?: DeviceContext;
 }
 
 const STORAGE_KEY = "alarm_diagnostics_log_v1";
 const MAX_ENTRIES = 200;
+
+let contextCache: DeviceContext | null = null;
+let contextPromise: Promise<DeviceContext> | null = null;
+
+const getTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+};
+
+const getLocale = (): string | undefined => {
+  try {
+    return navigator.language;
+  } catch {
+    return undefined;
+  }
+};
+
+// Resolve device + build info once. Safe on web (Capacitor plugins
+// gracefully return browser fallbacks).
+const resolveDeviceContext = async (): Promise<DeviceContext> => {
+  const fallback: DeviceContext = {
+    platform: Capacitor.getPlatform(),
+    timezone: getTimezone(),
+    locale: getLocale(),
+  };
+
+  try {
+    const [info, appInfo] = await Promise.all([
+      Device.getInfo().catch(() => null),
+      // App.getInfo only works on native; calling on web throws.
+      Capacitor.isNativePlatform() ? App.getInfo().catch(() => null) : Promise.resolve(null),
+    ]);
+
+    return {
+      ...fallback,
+      osVersion: info?.osVersion,
+      model: info?.model,
+      manufacturer: info?.manufacturer,
+      webViewVersion: info?.webViewVersion,
+      appVersion: appInfo?.version,
+      appBuild: appInfo?.build,
+    };
+  } catch (err) {
+    console.warn("[alarmDiagnostics] device context unavailable:", err);
+    return fallback;
+  }
+};
+
+export const getDeviceContext = (): Promise<DeviceContext> => {
+  if (contextCache) return Promise.resolve(contextCache);
+  if (contextPromise) return contextPromise;
+  contextPromise = resolveDeviceContext().then((ctx) => {
+    contextCache = ctx;
+    return ctx;
+  });
+  return contextPromise;
+};
+
+// Eagerly start resolving so the first log entry usually has full context.
+void getDeviceContext();
 
 let cache: AlarmDiagnosticEntry[] | null = null;
 const listeners = new Set<(entries: AlarmDiagnosticEntry[]) => void>();
@@ -102,11 +181,17 @@ export const logAlarmTrigger = (
     label: details?.label,
     alarmId: details?.alarmId,
     meta: details?.meta,
+    // Attach cached device/build context if it's already resolved. If not,
+    // the entry will be patched in once it resolves (see below).
+    context: contextCache ?? undefined,
   };
 
   // Tagged console line for Xcode / Android Studio logcat searching.
   console.log(
-    `[AlarmDiag] source=${source} label=${entry.label ?? "-"} alarmId=${entry.alarmId ?? "-"}`,
+    `[AlarmDiag] source=${source} label=${entry.label ?? "-"} alarmId=${entry.alarmId ?? "-"} ` +
+      `platform=${entry.context?.platform ?? "?"} app=${entry.context?.appVersion ?? "?"}` +
+      `(${entry.context?.appBuild ?? "?"}) os=${entry.context?.osVersion ?? "?"} ` +
+      `tz=${entry.context?.timezone ?? "?"}`,
     entry.meta ?? ""
   );
 
@@ -117,9 +202,27 @@ export const logAlarmTrigger = (
   cache = next;
   notify();
 
-  void writeRaw(JSON.stringify(next)).catch((err) =>
-    console.error("[alarmDiagnostics] persist failed:", err)
-  );
+  const persist = (entries: AlarmDiagnosticEntry[]) =>
+    writeRaw(JSON.stringify(entries)).catch((err) =>
+      console.error("[alarmDiagnostics] persist failed:", err)
+    );
+
+  void persist(next);
+
+  // If context wasn't ready yet, patch this entry as soon as it resolves so
+  // troubleshooting still has full device info.
+  if (!entry.context) {
+    void getDeviceContext().then((ctx) => {
+      if (!cache) return;
+      const idx = cache.findIndex((e) => e.id === entry.id);
+      if (idx === -1) return;
+      const patched = [...cache];
+      patched[idx] = { ...patched[idx], context: ctx };
+      cache = patched;
+      notify();
+      void persist(patched);
+    });
+  }
 };
 
 export const clearAlarmDiagnostics = async (): Promise<void> => {
