@@ -47,8 +47,8 @@ const resetPluginMocks = () => {
 
 describe("criticalAlerts wrapper", () => {
   beforeEach(() => {
-    mockPlatform = "ios";
-    mockIsNative = true;
+    mocks.platform = "ios";
+    mocks.isNative = true;
     resetPluginMocks();
     // Silence console.warn noise from expected error paths
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -60,43 +60,43 @@ describe("criticalAlerts wrapper", () => {
 
   describe("isCriticalAlertsSupported", () => {
     it("returns true on native iOS", () => {
-      mockIsNative = true;
-      mockPlatform = "ios";
+      mocks.isNative = true;
+      mocks.platform = "ios";
       expect(isCriticalAlertsSupported()).toBe(true);
     });
 
     it("returns false on Android (entitlement is iOS-only)", () => {
-      mockIsNative = true;
-      mockPlatform = "android";
+      mocks.isNative = true;
+      mocks.platform = "android";
       expect(isCriticalAlertsSupported()).toBe(false);
     });
 
     it("returns false on web", () => {
-      mockIsNative = false;
-      mockPlatform = "web";
+      mocks.isNative = false;
+      mocks.platform = "web";
       expect(isCriticalAlertsSupported()).toBe(false);
     });
   });
 
   describe("checkCriticalAlertsStatus", () => {
     it("returns notSupported fallback on web without invoking native", async () => {
-      mockIsNative = false;
-      mockPlatform = "web";
+      mocks.isNative = false;
+      mocks.platform = "web";
       const result = await checkCriticalAlertsStatus();
       expect(result).toEqual({ authorization: "unknown", critical: "notSupported" });
-      expect(mockPlugin.checkStatus).not.toHaveBeenCalled();
+      expect(mocks.plugin.checkStatus).not.toHaveBeenCalled();
     });
 
     it("returns notSupported fallback on Android without invoking native", async () => {
-      mockIsNative = true;
-      mockPlatform = "android";
+      mocks.isNative = true;
+      mocks.platform = "android";
       const result = await checkCriticalAlertsStatus();
       expect(result.critical).toBe("notSupported");
-      expect(mockPlugin.checkStatus).not.toHaveBeenCalled();
+      expect(mocks.plugin.checkStatus).not.toHaveBeenCalled();
     });
 
     it("maps an enabled critical setting from iOS through unchanged", async () => {
-      mockPlugin.checkStatus.mockResolvedValueOnce({
+      mocks.plugin.checkStatus.mockResolvedValueOnce({
         authorization: "authorized",
         critical: "enabled",
         alert: "enabled",
@@ -107,11 +107,11 @@ describe("criticalAlerts wrapper", () => {
       const result = await checkCriticalAlertsStatus();
       expect(result.critical).toBe("enabled");
       expect(result.authorization).toBe("authorized");
-      expect(mockPlugin.checkStatus).toHaveBeenCalledTimes(1);
+      expect(mocks.plugin.checkStatus).toHaveBeenCalledTimes(1);
     });
 
     it("maps a disabled critical setting from iOS through unchanged", async () => {
-      mockPlugin.checkStatus.mockResolvedValueOnce({
+      mocks.plugin.checkStatus.mockResolvedValueOnce({
         authorization: "authorized",
         critical: "disabled",
       });
@@ -121,7 +121,7 @@ describe("criticalAlerts wrapper", () => {
     });
 
     it("maps a notSupported critical setting from iOS (entitlement missing)", async () => {
-      mockPlugin.checkStatus.mockResolvedValueOnce({
+      mocks.plugin.checkStatus.mockResolvedValueOnce({
         authorization: "authorized",
         critical: "notSupported",
       });
@@ -130,7 +130,7 @@ describe("criticalAlerts wrapper", () => {
     });
 
     it("returns unknown fallback when the native call rejects on iOS", async () => {
-      mockPlugin.checkStatus.mockRejectedValueOnce(new Error("plugin not linked"));
+      mocks.plugin.checkStatus.mockRejectedValueOnce(new Error("plugin not linked"));
       const result = await checkCriticalAlertsStatus();
       expect(result).toEqual({ authorization: "unknown", critical: "unknown" });
     });
@@ -138,15 +138,15 @@ describe("criticalAlerts wrapper", () => {
 
   describe("requestCriticalAlerts", () => {
     it("returns notSupported fallback on web without invoking native", async () => {
-      mockIsNative = false;
-      mockPlatform = "web";
+      mocks.isNative = false;
+      mocks.platform = "web";
       const result = await requestCriticalAlerts();
       expect(result).toEqual({ granted: false, authorization: "unknown", critical: "notSupported" });
-      expect(mockPlugin.requestCritical).not.toHaveBeenCalled();
+      expect(mocks.plugin.requestCritical).not.toHaveBeenCalled();
     });
 
     it("propagates a granted + enabled response from iOS", async () => {
-      mockPlugin.requestCritical.mockResolvedValueOnce({
+      mocks.plugin.requestCritical.mockResolvedValueOnce({
         granted: true,
         authorization: "authorized",
         critical: "enabled",
@@ -157,7 +157,7 @@ describe("criticalAlerts wrapper", () => {
     });
 
     it("reports critical disabled even when generic auth was granted", async () => {
-      mockPlugin.requestCritical.mockResolvedValueOnce({
+      mocks.plugin.requestCritical.mockResolvedValueOnce({
         granted: true,
         authorization: "authorized",
         critical: "disabled",
@@ -170,7 +170,7 @@ describe("criticalAlerts wrapper", () => {
     });
 
     it("returns unknown fallback when the native call rejects", async () => {
-      mockPlugin.requestCritical.mockRejectedValueOnce(new Error("boom"));
+      mocks.plugin.requestCritical.mockRejectedValueOnce(new Error("boom"));
       const result = await requestCriticalAlerts();
       expect(result).toEqual({ granted: false, authorization: "unknown", critical: "unknown" });
     });
@@ -178,27 +178,27 @@ describe("criticalAlerts wrapper", () => {
 
   describe("openIosNotificationSettings", () => {
     it("returns false on web without invoking native", async () => {
-      mockIsNative = false;
-      mockPlatform = "web";
+      mocks.isNative = false;
+      mocks.platform = "web";
       const opened = await openIosNotificationSettings();
       expect(opened).toBe(false);
-      expect(mockPlugin.openSettings).not.toHaveBeenCalled();
+      expect(mocks.plugin.openSettings).not.toHaveBeenCalled();
     });
 
     it("returns true when native reports opened", async () => {
-      mockPlugin.openSettings.mockResolvedValueOnce({ opened: true });
+      mocks.plugin.openSettings.mockResolvedValueOnce({ opened: true });
       const opened = await openIosNotificationSettings();
       expect(opened).toBe(true);
     });
 
     it("returns false when native reports not opened", async () => {
-      mockPlugin.openSettings.mockResolvedValueOnce({ opened: false });
+      mocks.plugin.openSettings.mockResolvedValueOnce({ opened: false });
       const opened = await openIosNotificationSettings();
       expect(opened).toBe(false);
     });
 
     it("returns false when native call rejects", async () => {
-      mockPlugin.openSettings.mockRejectedValueOnce(new Error("nope"));
+      mocks.plugin.openSettings.mockRejectedValueOnce(new Error("nope"));
       const opened = await openIosNotificationSettings();
       expect(opened).toBe(false);
     });
