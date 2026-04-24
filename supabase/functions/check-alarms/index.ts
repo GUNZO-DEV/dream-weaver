@@ -19,13 +19,11 @@ Deno.serve(async (req) => {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    // JS: 0=Sun. Our DB uses 1=Mon..7=Sun
-    const jsDay = now.getDay(); // 0=Sun
-    const dbDay = jsDay === 0 ? 7 : jsDay; // 1=Mon..7=Sun
+    const appDay = now.getDay(); // 0=Sun..6=Sat
 
     const currentTime = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
 
-    console.log(`[check-alarms] Checking at ${currentTime}, day=${dbDay}`);
+    console.log(`[check-alarms] Checking at ${currentTime}, day=${appDay}`);
 
     // Get all enabled alarms matching current time
     const { data: alarms, error: alarmsError } = await supabase
@@ -51,8 +49,8 @@ Deno.serve(async (req) => {
     let triggeredCount = 0;
 
     for (const alarm of alarms) {
-      const days = alarm.days_of_week || [1, 2, 3, 4, 5]; // Default Mon-Fri
-      if (!days.includes(dbDay)) continue;
+      const days = alarm.days_of_week || [1, 2, 3, 4, 5]; // Default Mon-Fri in app format
+      if (!days.includes(appDay)) continue;
 
       // Check if already triggered in the last 2 minutes (avoid duplicates)
       const { data: existing } = await supabase
