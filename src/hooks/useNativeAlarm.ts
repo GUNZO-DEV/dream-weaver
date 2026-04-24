@@ -88,29 +88,31 @@ export const useNativeAlarm = () => {
       return null;
     }
 
-    const options: ScheduleOptions = {
-      notifications: [
-        {
-          id: alarm.id,
-          title: alarm.title,
-          body: alarm.body,
-          schedule: { at: alarm.scheduledAt },
-          sound: 'alarm_sound.wav',
-          actionTypeId: 'ALARM_ACTIONS',
-          extra: { alarmId: alarm.id, ...(alarm.extra || {}) },
-          channelId: 'alarm_channel',
-          attachments: undefined,
-          threadIdentifier: 'alarms',
-          summaryArgument: alarm.title,
-          ongoing: true,
-          autoCancel: false,
-          interruptionLevel: 'critical',
-        } as any,
-      ],
+    const isIOS = Capacitor.getPlatform() === 'ios';
+    const notification: any = {
+      id: alarm.id,
+      title: alarm.title,
+      body: alarm.body,
+      schedule: { at: alarm.scheduledAt },
+      sound: alarm.sound || 'alarm_sound.wav',
+      actionTypeId: 'ALARM_ACTIONS',
+      extra: { alarmId: alarm.id, ...(alarm.extra || {}) },
     };
 
+    if (isIOS) {
+      notification.threadIdentifier = 'alarms';
+      notification.summaryArgument = alarm.title;
+      // 'critical' bypasses silent/DND when entitlement is granted; otherwise
+      // iOS automatically downgrades to time-sensitive behavior.
+      notification.interruptionLevel = 'critical';
+    } else {
+      notification.channelId = 'alarm_channel';
+      notification.ongoing = true;
+      notification.autoCancel = false;
+    }
+
     try {
-      const result = await LocalNotifications.schedule(options);
+      const result = await LocalNotifications.schedule({ notifications: [notification] });
       console.log('Alarm scheduled:', result);
       return result;
     } catch (error) {
