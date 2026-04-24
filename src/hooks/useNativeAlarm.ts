@@ -53,6 +53,11 @@ export const useNativeAlarm = () => {
                 foreground: false,
               },
               {
+                id: 'snooze_repeat',
+                title: 'Snooze (repeat)',
+                foreground: false,
+              },
+              {
                 id: 'dismiss',
                 title: 'Dismiss',
                 destructive: true,
