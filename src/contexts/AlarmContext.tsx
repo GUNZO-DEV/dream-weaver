@@ -8,6 +8,7 @@ import { FullScreenAlarm } from "@/components/FullScreenAlarm";
 import { syncAlarmsToStorage } from "@/lib/alarmStorage";
 import { onNativeAlarmSoundFallback } from "@/lib/scheduleNativeAlarms";
 import { supabase } from "@/integrations/supabase/client";
+import { logAlarmTrigger } from "@/lib/alarmDiagnostics";
 import { toast } from "sonner";
 
 interface AlarmContextType {
