@@ -170,6 +170,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const testAlarm = useCallback(() => {
+    logAlarmTrigger("test", { label: "Test Alarm" });
     triggerAlarmUI({
       captchaType: settings.captchaType,
       difficulty: settings.captchaDifficulty,
