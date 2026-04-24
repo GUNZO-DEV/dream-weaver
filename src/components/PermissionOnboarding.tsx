@@ -279,6 +279,7 @@ export const PermissionOnboarding = () => {
                     </p>
                   )}
                 </div>
+                {status.notifications === "denied" && <OpenSettingsButton label="Enable in iOS Settings" />}
                 <Button
                   className="w-full h-11"
                   variant="secondary"
