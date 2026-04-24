@@ -272,6 +272,20 @@ export const FullScreenAlarm = ({
               Snooze (5 min)
             </Button>
 
+            {/* Snooze (repeat) — keeps re-firing every 5 min until dismissed */}
+            {onSnoozeRepeat && (
+              <Button
+                onPointerDown={() => triggerHaptic([30, 50, 30, 50, 30])}
+                onClick={onSnoozeRepeat}
+                variant="outline"
+                className="w-full h-20 text-xl font-semibold rounded-2xl active:scale-[0.98] transition-transform touch-manipulation"
+                aria-label="Snooze alarm and keep repeating until dismissed"
+              >
+                <Moon size={24} className="mr-2" />
+                Snooze (repeat)
+              </Button>
+            )}
+
             {/* Dismiss — opens captcha or dismisses immediately if disabled */}
             <Button
               onPointerDown={() => triggerHaptic(50)}
