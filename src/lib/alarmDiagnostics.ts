@@ -41,6 +41,27 @@ const MAX_ENTRIES = 200;
 
 let contextCache: DeviceContext | null = null;
 let contextPromise: Promise<DeviceContext> | null = null;
+let contextResolvedAt: number | null = null;
+const contextResolvedListeners = new Set<(at: number) => void>();
+
+export const getContextResolvedAt = (): number | null => contextResolvedAt;
+
+export const subscribeContextResolved = (
+  listener: (at: number) => void
+): (() => void) => {
+  contextResolvedListeners.add(listener);
+  // Fire immediately if already resolved.
+  if (contextResolvedAt !== null) {
+    try {
+      listener(contextResolvedAt);
+    } catch (err) {
+      console.error("[alarmDiagnostics] context listener error:", err);
+    }
+  }
+  return () => {
+    contextResolvedListeners.delete(listener);
+  };
+};
 
 const getTimezone = (): string => {
   try {
