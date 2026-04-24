@@ -8,6 +8,7 @@ export interface AlarmNotification {
   body: string;
   scheduledAt: Date;
   sound?: string;
+  extra?: Record<string, any>;
 }
 
 export const useNativeAlarm = () => {
