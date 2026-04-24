@@ -17,6 +17,7 @@ import { CaptchaType, CaptchaChallenge } from "@/hooks/useAlarmCaptcha";
 interface FullScreenAlarmProps {
   onDismiss: () => void;
   onSnooze: () => void;
+  onSnoozeRepeat?: () => void;
   alarmLabel?: string;
   captchaType?: CaptchaType;
   difficulty?: number;
