@@ -117,7 +117,14 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
       setShowAlarm(true);
 
       if (!isNative) {
-        playAlarm(config.soundId, config.gradualVolume, config.vibrationEnabled);
+        // Fire-and-forget; the hook handles its own fallback chain.
+        void playAlarm(config.soundId, config.gradualVolume, config.vibrationEnabled).then((result) => {
+          if (!result.ok) {
+            toast.error(result.reason || "Alarm sound failed to play");
+          } else if (result.fellBack) {
+            toast.warning(result.reason || "Using fallback alarm sound");
+          }
+        });
       } else {
         // Native: vibrate continuously
         const vibrateLoop = () => {
