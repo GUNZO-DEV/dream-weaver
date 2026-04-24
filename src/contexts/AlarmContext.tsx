@@ -336,6 +336,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
         // Only fire once per minute
         if (now.getSeconds() > 1) return;
 
+        logAlarmTrigger("web-interval", {
+          label: alarm.label,
+          alarmId: alarm.id,
+          meta: { time: alarm.time, day: currentDay },
+        });
+
         triggerAlarmUI({
           captchaType: (alarm.captcha_type as CaptchaType) || "math",
           difficulty: alarm.captcha_difficulty || 2,
