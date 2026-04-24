@@ -96,6 +96,7 @@ const generateChallenge = (type: CaptchaType, difficulty: number): CaptchaChalle
 export const FullScreenAlarm = ({
   onDismiss,
   onSnooze,
+  onSnoozeRepeat,
   alarmLabel = "Alarm",
   captchaType = "math",
   difficulty = 2,
