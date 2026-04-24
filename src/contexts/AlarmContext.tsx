@@ -204,6 +204,12 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           scheduleSnooze({ repeating: true });
         }
 
+        logAlarmTrigger(isRepeating ? "snooze-repeat" : "native-notification", {
+          label: foundAlarm?.label ?? notification.title,
+          alarmId: foundAlarm?.id ?? notifAlarmId,
+          meta: { notificationId: notification.id, hasMatch: !!foundAlarm },
+        });
+
         triggerAlarmUI({
           captchaType: (foundAlarm?.captcha_type as CaptchaType) || "math",
           difficulty: foundAlarm?.captcha_difficulty || 2,
