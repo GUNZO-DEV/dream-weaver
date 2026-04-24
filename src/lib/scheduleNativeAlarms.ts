@@ -82,6 +82,16 @@ export async function syncAlarmsToNative(alarms: Alarm[] | null | undefined): Pr
       return;
     }
 
+    // Pre-flight: confirm bundled sound is reachable. If not, fall back to
+    // the system default sound so the alarm is still audible (loud beep).
+    const soundCheck = await checkAlarmSoundAvailable();
+    const soundFile = soundCheck.ok ? ALARM_SOUND_FILE : undefined;
+    if (!soundCheck.ok) {
+      const reason = `Custom alarm sound unavailable (${soundCheck.error}). Using system default.`;
+      console.error('[syncAlarmsToNative]', reason);
+      emitFallback(reason);
+    }
+
     const isIOS = Capacitor.getPlatform() === 'ios';
     const notifications: any[] = [];
 
@@ -112,7 +122,8 @@ export async function syncAlarmsToNative(alarms: Alarm[] | null | undefined): Pr
             repeats: true,
             ...(isIOS ? {} : { allowWhileIdle: true }),
           },
-          sound: 'alarm_sound.wav',
+          // soundFile is undefined → iOS/Android use the platform default sound
+          ...(soundFile ? { sound: soundFile } : {}),
           actionTypeId: 'ALARM_ACTIONS',
           extra: { alarmId: alarm.id, dayOfWeek: day },
         };
@@ -138,8 +149,36 @@ export async function syncAlarmsToNative(alarms: Alarm[] | null | undefined): Pr
       return;
     }
 
-    const result = await LocalNotifications.schedule({ notifications });
-    console.log('[syncAlarmsToNative] Scheduled', notifications.length, 'notifications:', result);
+    try {
+      const result = await LocalNotifications.schedule({ notifications });
+      console.log('[syncAlarmsToNative] Scheduled', notifications.length, 'notifications:', result);
+    } catch (scheduleErr: any) {
+      // If scheduling failed and we WERE using the custom sound, retry once
+      // with the system default — the most likely cause is a missing/invalid
+      // sound asset in the iOS bundle.
+      const msg = scheduleErr?.message || String(scheduleErr);
+      console.error('[syncAlarmsToNative] schedule() failed:', msg);
+      if (soundFile) {
+        const reason = `Scheduling with "${soundFile}" failed (${msg}). Retrying with system default sound.`;
+        console.warn('[syncAlarmsToNative]', reason);
+        emitFallback(reason);
+        const fallbackNotifs = notifications.map((n) => {
+          const { sound, ...rest } = n;
+          return rest;
+        });
+        try {
+          const result = await LocalNotifications.schedule({ notifications: fallbackNotifs });
+          console.log('[syncAlarmsToNative] Fallback scheduled', fallbackNotifs.length, 'notifications:', result);
+        } catch (retryErr: any) {
+          const retryMsg = retryErr?.message || String(retryErr);
+          console.error('[syncAlarmsToNative] Fallback schedule also failed:', retryMsg);
+          emitFallback(`Failed to schedule alarms even with default sound: ${retryMsg}`);
+          throw retryErr;
+        }
+      } else {
+        throw scheduleErr;
+      }
+    }
   } catch (err) {
     console.error('[syncAlarmsToNative] Failed:', err);
   }
