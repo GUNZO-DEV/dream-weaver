@@ -7,32 +7,56 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { storageGet, storageSet } from "@/lib/capacitorStorage";
 import { toast } from "sonner";
+import {
+  checkCriticalAlertsStatus,
+  requestCriticalAlerts,
+  isCriticalAlertsSupported,
+  type CriticalSetting,
+} from "@/lib/criticalAlerts";
 
 const ONBOARDING_KEY = "permission_onboarding_complete_v1";
 
-type StepStatus = "idle" | "pending" | "granted" | "denied";
+type StepStatus = "idle" | "pending" | "granted" | "denied" | "unsupported";
 
 interface StepState {
   notifications: StepStatus;
   critical: StepStatus;
+  criticalDetail: CriticalSetting | null;
 }
 
 export const PermissionOnboarding = () => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"intro" | "notifications" | "critical" | "done">("intro");
-  const [status, setStatus] = useState<StepState>({ notifications: "idle", critical: "idle" });
+  const [status, setStatus] = useState<StepState>({ notifications: "idle", critical: "idle", criticalDetail: null });
 
-  // Decide whether to show the onboarding on first launch (native only)
+  // Decide whether to show the onboarding on first launch (native only).
+  // We also pre-load the real Critical Alerts entitlement state from iOS so
+  // the UI reflects the actual status, not just the generic notification flag.
   useEffect(() => {
     let cancelled = false;
     const init = async () => {
       if (!Capacitor.isNativePlatform()) return;
       try {
+        // Pre-fill critical status from native side regardless of onboarding state
+        const critical = await checkCriticalAlertsStatus();
+        if (!cancelled) {
+          setStatus((s) => ({
+            ...s,
+            criticalDetail: critical.critical,
+            critical:
+              critical.critical === "enabled"
+                ? "granted"
+                : critical.critical === "notSupported"
+                ? "unsupported"
+                : s.critical,
+          }));
+        }
+
         const seen = await storageGet(ONBOARDING_KEY);
         if (seen === "1") return;
-        // If permission is already granted, mark complete silently
+        // If display + critical are both already in a final state, mark complete silently
         const current = await LocalNotifications.checkPermissions();
-        if (current.display === "granted") {
+        if (current.display === "granted" && critical.critical !== "unknown") {
           await storageSet(ONBOARDING_KEY, "1");
           return;
         }
@@ -69,22 +93,42 @@ export const PermissionOnboarding = () => {
   };
 
   const requestCritical = async () => {
+    // Skip cleanly on platforms without the entitlement (Android / web)
+    if (!isCriticalAlertsSupported()) {
+      setStatus((s) => ({ ...s, critical: "unsupported", criticalDetail: "notSupported" }));
+      toast("Critical Alerts unavailable", {
+        description: "This entitlement is iOS-only and not active on this device.",
+      });
+      setTimeout(() => setStep("done"), 700);
+      return;
+    }
+
     setStatus((s) => ({ ...s, critical: "pending" }));
     try {
-      // iOS surfaces a separate prompt for Critical Alerts when the entitlement
-      // is granted to the app. We re-request permissions so the OS can show it.
-      const result = await LocalNotifications.requestPermissions();
-      const granted = result.display === "granted";
-      setStatus((s) => ({ ...s, critical: granted ? "granted" : "denied" }));
-      if (granted) {
-        toast.success("Critical Alerts allowed", { description: "Alarms will bypass Silent and Do Not Disturb." });
+      const result = await requestCriticalAlerts();
+      const isEnabled = result.critical === "enabled";
+      const isUnsupported = result.critical === "notSupported";
+
+      if (isUnsupported) {
+        setStatus((s) => ({ ...s, critical: "unsupported", criticalDetail: result.critical }));
+        toast.error("Critical Alerts entitlement missing", {
+          description: "Add the Critical Alerts entitlement in Xcode and rebuild the app.",
+        });
+      } else if (isEnabled) {
+        setStatus((s) => ({ ...s, critical: "granted", criticalDetail: result.critical }));
+        toast.success("Critical Alerts enabled", {
+          description: "Alarms will bypass Silent, Do Not Disturb, and Focus.",
+        });
       } else {
-        toast.error("Critical Alerts denied", { description: "Enable later in Settings → Notifications → SleepWell." });
+        setStatus((s) => ({ ...s, critical: "denied", criticalDetail: result.critical }));
+        toast.error("Critical Alerts not enabled", {
+          description: "Enable in Settings → Notifications → SleepWell → Critical Alerts.",
+        });
       }
       setTimeout(() => setStep("done"), 700);
     } catch (err) {
       console.error("[PermissionOnboarding] critical request failed", err);
-      setStatus((s) => ({ ...s, critical: "denied" }));
+      setStatus((s) => ({ ...s, critical: "denied", criticalDetail: "unknown" }));
       toast.error("Critical Alerts request failed", { description: "Please try again from Settings." });
       setTimeout(() => setStep("done"), 700);
     }
@@ -99,12 +143,12 @@ export const PermissionOnboarding = () => {
     setOpen(false);
   };
 
-  const StatusBadge = ({ value }: { value: StepStatus }) => {
+  const StatusBadge = ({ value, label }: { value: StepStatus; label?: string }) => {
     if (value === "granted") {
       return (
         <div className="flex items-center gap-2 text-sm text-primary">
           <CheckCircle2 size={16} />
-          <span>Allowed</span>
+          <span>{label ?? "Allowed"}</span>
         </div>
       );
     }
@@ -113,6 +157,14 @@ export const PermissionOnboarding = () => {
         <div className="flex items-center gap-2 text-sm text-destructive">
           <XCircle size={16} />
           <span>Not allowed</span>
+        </div>
+      );
+    }
+    if (value === "unsupported") {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ShieldAlert size={16} />
+          <span>Entitlement missing</span>
         </div>
       );
     }
@@ -234,19 +286,40 @@ export const PermissionOnboarding = () => {
                       <p className="text-xs text-muted-foreground">Bypass Silent, Do Not Disturb, and Focus modes.</p>
                     </div>
                   </div>
-                  <StatusBadge value={status.critical} />
+                  <StatusBadge
+                    value={status.critical}
+                    label={status.critical === "granted" ? "Entitlement active" : undefined}
+                  />
                   {status.critical === "denied" && (
                     <p className="text-xs text-muted-foreground">
-                      Enable later in iOS Settings → Notifications → SleepWell → Critical Alerts.
+                      iOS notifications are on, but Critical Alerts is off. Enable it in Settings → Notifications → SleepWell → Critical Alerts.
+                    </p>
+                  )}
+                  {status.critical === "unsupported" && (
+                    <p className="text-xs text-muted-foreground">
+                      The Critical Alerts entitlement is not enabled in this build. Add it in Xcode (Signing & Capabilities) and rebuild.
+                    </p>
+                  )}
+                  {status.critical === "granted" && (
+                    <p className="text-xs text-muted-foreground">
+                      Verified directly with iOS — alarms can override Silent and Focus modes.
                     </p>
                   )}
                 </div>
                 <Button
                   className="w-full h-11"
                   onClick={requestCritical}
-                  disabled={status.critical === "pending" || status.critical === "granted"}
+                  disabled={
+                    status.critical === "pending" ||
+                    status.critical === "granted" ||
+                    status.critical === "unsupported"
+                  }
                 >
-                  {status.critical === "granted" ? "Already enabled" : "Allow Critical Alerts"}
+                  {status.critical === "granted"
+                    ? "Already enabled"
+                    : status.critical === "unsupported"
+                    ? "Unavailable on this device"
+                    : "Allow Critical Alerts"}
                 </Button>
                 <button onClick={() => setStep("done")} className="w-full text-xs text-muted-foreground hover:text-foreground">
                   Skip this step
