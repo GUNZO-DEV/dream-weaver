@@ -144,6 +144,27 @@ export const PermissionOnboarding = () => {
     setOpen(false);
   };
 
+  const openSettings = async () => {
+    const opened = await openIosNotificationSettings();
+    if (!opened) {
+      toast.error("Couldn't open Settings", {
+        description: "Open the iOS Settings app manually and find SleepWell → Notifications.",
+      });
+    }
+  };
+
+  const OpenSettingsButton = ({ label = "Open iOS Settings" }: { label?: string }) => (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full h-11 gap-2"
+      onClick={openSettings}
+    >
+      <SettingsIcon size={16} />
+      {label}
+    </Button>
+  );
+
   const StatusBadge = ({ value, label }: { value: StepStatus; label?: string }) => {
     if (value === "granted") {
       return (
