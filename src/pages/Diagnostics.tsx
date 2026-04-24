@@ -107,12 +107,16 @@ const Diagnostics = () => {
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             This device
           </p>
-          {contextResolving && (
+          {contextResolving ? (
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <Loader2 size={12} className="animate-spin" />
               <span>Resolving context…</span>
             </div>
-          )}
+          ) : contextResolvedAt ? (
+            <div className="text-[10px] text-muted-foreground tabular-nums">
+              Updated {formatTimestamp(contextResolvedAt)}
+            </div>
+          ) : null}
         </div>
         <Card className="p-4 bg-card/60 backdrop-blur border-border">
           <div className="flex items-start gap-3">
