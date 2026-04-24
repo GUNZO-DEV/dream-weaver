@@ -26,8 +26,14 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>processing</string>
+		<string>audio</string>
 		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>app.lovable.sleepwell.alarm-check</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -52,11 +58,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string>&lt;key&gt;BGTaskSchedulerPermittedIdentifiers&lt;/key&gt;
-&lt;array&gt;
-  &lt;string&gt;app.lovable.sleepwell.alarm-check&lt;/string&gt;
-&lt;/array&gt;
-</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SleepWell uses the microphone to detect snoring and ambient noise during sleep tracking.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>SleepWell uses notifications to wake you with your scheduled alarms.</string>
 </dict>
 </plist>
