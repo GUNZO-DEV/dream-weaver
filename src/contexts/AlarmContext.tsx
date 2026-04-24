@@ -207,7 +207,8 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
           difficulty: foundAlarm?.captcha_difficulty || 2,
           label: foundAlarm?.label || "Alarm",
           soundId: (foundAlarm?.sound_id as AlarmSoundType) || "sunrise",
-          gradualVolume: foundAlarm?.gradual_volume ?? true,
+          // Match the Test Alarm scenario: full volume immediately.
+          gradualVolume: false,
           vibrationEnabled: foundAlarm?.vibration ?? true,
         });
       },
